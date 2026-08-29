@@ -1,0 +1,189 @@
+name: Publish
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
+      - closed
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  prerelease:
+    if: >-
+      github.event.action != 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pr-publish-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compute prerelease version
+        id: version
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          base_version="$(git show "${BASE_SHA}:package.json" | jq -r .version)"
+          next="$(node .github/scripts/next-version.mjs "${base_version}" "${LABELS}")"
+          prerelease="${next}-build.${RUN_NUMBER}"
+          echo "base=${base_version}" >> "$GITHUB_OUTPUT"
+          echo "next=${next}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+          echo "Prerelease version: ${prerelease} (from ${base_version})"
+
+      - name: Set package version
+        run: |
+          set -euo pipefail
+          jq --arg v "${{ steps.version.outputs.prerelease }}" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Publish prerelease
+        run: |
+          set -euo pipefail
+          pnpm publish \
+            --access public \
+            --tag "pr-${{ github.event.pull_request.number }}" \
+            --no-git-checks \
+            --ignore-scripts
+
+  release:
+    if: >-
+      github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    concurrency:
+      group: release-main
+      cancel-in-progress: false
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Compute release version
+        id: version
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          base_version="$(jq -r .version package.json)"
+          next="$(node .github/scripts/next-version.mjs "${base_version}" "${LABELS}")"
+          echo "base=${base_version}" >> "$GITHUB_OUTPUT"
+          echo "next=${next}" >> "$GITHUB_OUTPUT"
+          echo "pr_tag=pr-${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "Release version: ${next} (from ${base_version}, tag pr-${PR_NUMBER})"
+
+      - name: Download prerelease tarball
+        id: pack
+        env:
+          PR_TAG: ${{ steps.version.outputs.pr_tag }}
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          set -euo pipefail
+          # Avoid empty _authToken from setup-node's .npmrc when fetching a public package
+          npm pack "agent-gwt@${PR_TAG}" --userconfig /dev/null --registry https://registry.npmjs.org
+          tarball="$(ls -1 agent-gwt-*.tgz | head -n1)"
+          echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
+          mkdir -p staged
+          tar -xzf "${tarball}" -C staged
+          jq --arg v "${NEXT}" '.version = $v' staged/package/package.json > staged/package/package.json.tmp
+          mv staged/package/package.json.tmp staged/package/package.json
+          echo "Rewrote staged package version to ${NEXT}"
+
+      - name: Stage release
+        id: stage
+        run: |
+          set -euo pipefail
+          output="$(pnpm stage publish ./staged/package --access public --tag latest --json)"
+          echo "${output}"
+          stage_id="$(printf '%s\n' "${output}" | jq -r 'to_entries[0].value.id // empty')"
+          echo "stage_id=${stage_id}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Staged release"
+            echo ""
+            echo "Version **${{ steps.version.outputs.next }}** was staged from \`${{ steps.version.outputs.pr_tag }}\`."
+            echo ""
+            if [[ -n "${stage_id}" ]]; then
+              echo "Approve with:"
+              echo ""
+              echo "\`\`\`bash"
+              echo "pnpm stage approve ${stage_id}"
+              echo "\`\`\`"
+            else
+              echo "Approve from the [Staged Packages](https://www.npmjs.com/stages) tab or via \`pnpm stage list\` / \`pnpm stage approve\`."
+            fi
+            echo ""
+            echo "Approval requires 2FA and cannot run via OIDC."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bump package.json on main
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          set -euo pipefail
+          jq --arg v "${NEXT}" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: release v${NEXT}"
+          git push origin main
+
+      - name: Remove PR dist-tag
+        continue-on-error: true
+        env:
+          PR_TAG: ${{ steps.version.outputs.pr_tag }}
+        run: npm dist-tag rm agent-gwt "${PR_TAG}" || true

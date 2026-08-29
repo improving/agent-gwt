@@ -12,6 +12,25 @@ v1 ships the **Cursor** agent: create a temp workspace, mount **only** Cursor cr
 pnpm add -D agent-gwt vitest vitest-gwt
 ```
 
+### PR builds
+
+Open PRs against `main` publish a prerelease under the dist-tag `pr-<number>`:
+
+```bash
+pnpm add -D agent-gwt@pr-123
+```
+
+### Releasing
+
+Merging a PR stages the exact prerelease bits as the next semver (not live until approved):
+
+```bash
+pnpm stage list
+pnpm stage approve <stage-id>
+```
+
+Bump size is controlled by PR labels (`major` > `minor` > patch default). See [Publishing](PUBLISHING.md) for trusted-publisher setup.
+
 ## Prerequisites
 
 1. Docker
