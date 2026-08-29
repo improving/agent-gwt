@@ -1,1 +1,6 @@
-export { BASE_IMAGE, BASE_DOCKERFILE_RELATIVE } from "./constants.js";
+export {
+  BASE_IMAGE,
+  BASE_DOCKERFILE_RELATIVE,
+  CONTAINER_HOME,
+  CONTAINER_WORKSPACE,
+} from "./constants.js";

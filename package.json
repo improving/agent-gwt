@@ -4,6 +4,8 @@
   "description": "GWT step functions for repeatable agent tests",
   "keywords": [
     "agent",
+    "claude",
+    "claude-code",
     "cursor",
     "gwt",
     "testing",

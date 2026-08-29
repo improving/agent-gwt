@@ -2,7 +2,8 @@ import { describe, expect } from "vitest";
 import test from "vitest-gwt";
 import { join } from "node:path";
 
-import { CONTAINER_AUTH_PATH, CONTAINER_HOME, CONTAINER_WORKSPACE } from "./constants.js";
+import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "../base/constants.js";
+import { CONTAINER_AUTH_PATH } from "./constants.js";
 import { buildDockerArgs, runCursorInDocker } from "./run.js";
 import type { DockerRunner } from "../types.js";
 

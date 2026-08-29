@@ -2,7 +2,7 @@
 
 GWT step functions for repeatable **agent** tests. Works with [vitest-gwt](https://github.com/devzeebo/vitest-gwt) / [gwt-runner](https://github.com/devzeebo/gwt-runner).
 
-v1 ships the **Cursor** agent: create a temp workspace, mount **only** Cursor credentials, run the agent as your host user, and put parsed `--output-format json` on the test context.
+Ships the **Cursor** and **Claude Code** agents: create a temp workspace, mount **only** the agent's credentials, run the agent as your host user, and put parsed `--output-format json` on the test context.
 
 ## Install
 
@@ -13,12 +13,19 @@ pnpm add -D agent-gwt vitest vitest-gwt
 ## Prerequisites
 
 1. Docker
-2. Host Cursor CLI login (`agent login`) so `~/.config/cursor/auth.json` exists
+2. Host login for the agent(s) you use:
+   - **Cursor:** `agent login` so `~/.config/cursor/auth.json` exists
+   - **Claude Code:** `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token` — Claude subscription) **or** `ANTHROPIC_API_KEY` in the environment, **or** a Linux host's `~/.claude/.credentials.json`. Checked in that order. macOS keeps Claude Code's login in the Keychain, so on a Mac set one of the two variables:
+
+     ```bash
+     claude setup-token                       # prints a long-lived token
+     export CLAUDE_CODE_OAUTH_TOKEN=<token>   # or: export ANTHROPIC_API_KEY=sk-ant-...
+     ```
 3. Build the agent Docker image **once per suite** via vitest `globalSetup` (or manually)
 
 ## Setup
 
-Build images once in `globalSetup` so parallel test files do not race:
+Build images once in `globalSetup` so parallel test files do not race. Build only the agents your suite uses:
 
 ```ts
 // vitest.global-setup.ts
@@ -26,6 +33,7 @@ import { buildAgentImage } from "agent-gwt";
 
 export default async function setup() {
   await buildAgentImage("cursor");
+  await buildAgentImage("claude");
 }
 ```
 
@@ -43,6 +51,13 @@ export default defineConfig({
 ## Usage
 
 Wire the agent and a disposable workspace with `withAspect`, then write Given/When/Then tests. Agent runs are slow — raise the timeout.
+
+Pick the agent with `agent({ name, model })`; nothing else in the test changes:
+
+```ts
+withAspect(agent({ name: "cursor", model: "auto" })); // Cursor CLI
+withAspect(agent({ name: "claude", model: "sonnet" })); // Claude Code
+```
 
 ### Simple prompt
 
@@ -159,14 +174,43 @@ async function question_is_answered(this: Context) {
 }
 ```
 
+### Inspecting the result
+
+`this.agentResult` is the parsed JSON the CLI printed, for either agent. For Claude Code, `ClaudeAgentResult` types the useful fields:
+
+```ts
+import type { ClaudeAgentResult } from "agent-gwt";
+
+function used_one_turn(this: Context) {
+  const result = this.agentResult as ClaudeAgentResult;
+
+  expect(result.is_error).toBe(false);
+  expect(result.num_turns).toBeGreaterThan(0);
+  expect(result.total_cost_usd).toBeLessThan(0.5);
+}
+```
+
+A Claude run whose JSON reports `is_error: true` throws from `executing_the_agent` with the agent's message, so a failing run surfaces as the real cause rather than a downstream assertion.
+
 ## Docker images
 
 | Image | Role |
 | --- | --- |
 | `agent-gwt/base:local` | Shared Arch Linux base (`yay` + `aur` user). Used by all agents. |
 | `agent-gwt/cursor-cli:local` | Cursor CLI on top of the base |
+| `agent-gwt/claude-code:local` | Claude Code CLI (native binary) on top of the base |
 
-`buildAgentImage("cursor")` builds the base first, then the Cursor image.
+`buildAgentImage("cursor")` builds the base first, then the Cursor image; `buildAgentImage("claude")` does the same for Claude Code.
+
+### Apple Silicon
+
+The official `archlinux` image is x86_64-only. On an arm64 Docker host, build and run under amd64 emulation:
+
+```bash
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+```
+
+Docker Desktop applies this to both `docker build` and `docker run`, so nothing in the library changes.
 
 ### Extending with toolchains
 
@@ -175,6 +219,7 @@ Install packages in a child image, then point tests at that tag:
 ```dockerfile
 # docker/agent.Dockerfile
 FROM agent-gwt/cursor-cli:local
+# or: FROM agent-gwt/claude-code:local
 
 # Official Arch packages (as root)
 RUN pacman -Sy --noconfirm --needed nodejs npm python rust \
@@ -218,7 +263,9 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 ## What `executing_the_agent` does
 
 1. Requires `this.workspace`, `this.prompt`, and `this.agent`
-2. Calls `this.agent.run(...)` with `this.image` (Cursor: `docker run` with credentials-only mount + `agent -p --force --output-format json`)
+2. Calls `this.agent.run(...)` with `this.image`:
+   - Cursor: `docker run` with credentials-only mount + `agent -p --force --output-format json [--model …] -- <prompt>`
+   - Claude: `docker run` with the workspace mount and credentials forwarded by env **name** (the value never appears on the host command line) or a read-only `.credentials.json` mount + `claude -p --output-format json --dangerously-skip-permissions [--model …] -- <prompt>`
 3. Sets `this.agentResult` to the parsed JSON
 
 ## Exports
@@ -226,7 +273,7 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 | Export | Role |
 | --- | --- |
 | `AgentContext` | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …) |
-| `agent(opts)` | `withAspect` before — `{ name, model?, image? }` |
+| `agent(opts)` | `withAspect` before — `{ name: "cursor" \| "claude", model?, image? }` |
 | `buildAgentImage(name)` | Suite setup — builds base + agent image (use in vitest `globalSetup`) |
 | `buildBaseImage()` | Builds `agent-gwt/base:local` only |
 | `buildDockerImage(...)` | Builds an arbitrary Dockerfile (e.g. toolchain overlay) |
@@ -234,11 +281,14 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 | `cleanup_workspace` | Remove the temp workspace (use in `withAspect` after) |
 | `the_prompt(text)` | Curried `given` — sets `this.prompt` |
 | `executing_the_agent` | `when` — runs `this.agent.run(...)` |
+| `ClaudeAgentResult` | Type for Claude Code's JSON result (`is_error`, `result`, `num_turns`, `total_cost_usd`, …) |
+| `ClaudeCredentials` / `resolveClaudeCredentials()` | Credential source for the Claude container (token, API key, or file) |
 
 ## Isolation notes
 
-- **Credentials only:** settings, MCP config, projects, and skills from `~/.cursor` are not mounted.
+- **Credentials only:** settings, MCP config, projects, and skills from `~/.cursor` are not mounted. Likewise nothing from `~/.claude` (settings, MCP servers, plugins, skills, projects, hooks) reaches the Claude container, and its auto-updater, telemetry, and error reporting are disabled in the image.
 - **Non-root:** the container process uses your host uid/gid so workspace files are owned by you.
+- **Workspace is the only writable host path.** A `CLAUDE.md` seeded into the workspace is honoured, because Claude Code reads it from the working directory.
 
 ## Contributing
 
