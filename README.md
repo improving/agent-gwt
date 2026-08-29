@@ -14,21 +14,24 @@ pnpm add -D agent-gwt vitest vitest-gwt
 
 1. Docker
 2. Host Cursor CLI login (`agent login`) so `~/.config/cursor/auth.json` exists
-3. Build the agent Docker image **once per suite** via vitest `globalSetup` (or manually):
+3. Build the agent Docker image **once per suite** via vitest `globalSetup` (or manually)
+
+## Setup
+
+Build images once in `globalSetup` so parallel test files do not race:
 
 ```ts
 // vitest.global-setup.ts
 import { buildAgentImage } from "agent-gwt";
 
 export default async function setup() {
-  // Builds agent-gwt/base:local then agent-gwt/cursor-cli:local
   await buildAgentImage("cursor");
 }
 ```
 
 ```ts
-// vitest.config.ts
-import { defineConfig } from "vitest/config";
+// vite.config.ts (or vitest.config.ts)
+import { defineConfig } from "vite-plus"; // or "vitest/config"
 
 export default defineConfig({
   test: {
@@ -39,54 +42,120 @@ export default defineConfig({
 
 ## Usage
 
+Wire the agent and a disposable workspace with `withAspect`, then write Given/When/Then tests. Agent runs are slow — raise the timeout.
+
+### Simple prompt
+
 ```ts
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect } from "vitest";
-import test, { withAspect } from "vitest-gwt";
+import test, { withAspect, withTestOptions } from "vitest-gwt";
 import {
   type AgentContext,
-  agent,
   a_workspace,
+  agent,
   cleanup_workspace,
-  the_prompt,
   executing_the_agent,
+  the_prompt,
 } from "agent-gwt";
 
-type Context = AgentContext & {
-  // extend with your own fields
-};
+describe("simple prompt", () => {
+  withAspect(agent({ name: "cursor", model: "auto" }));
+  withAspect(a_workspace, cleanup_workspace);
 
-describe("cursor agent", () => {
-  withAspect(
-    agent({
-      name: "cursor",
-      model: "auto",
-    }),
-    cleanup_workspace,
-  );
+  withTestOptions((opts) => (opts.timeout = 60 * 1000));
 
-  test("creates README from prompt", {
+  test("writes the readme", {
     given: {
-      a_workspace,
-      the_prompt: the_prompt("Create a README.md that says hello"),
+      the_prompt: the_prompt("Write 'Hello World' to README.md"),
     },
     when: {
       executing_the_agent,
     },
     then: {
-      agent_returned_json,
       readme_exists,
+      readme_contains_HELLO_WORLD,
     },
   });
 });
 
-function agent_returned_json(this: Context) {
-  expect(this.agentResult).toEqual(expect.any(Object));
-}
+type Context = AgentContext & {
+  // extend with your own fields
+};
 
 async function readme_exists(this: Context) {
   await access(join(this.workspace, "README.md"));
+}
+
+async function readme_contains_HELLO_WORLD(this: Context) {
+  const contents = await readFile(join(this.workspace, "README.md"), "utf-8");
+
+  expect(contents.toLowerCase()).toContain("hello world");
+}
+```
+
+### Seeded workspace
+
+Seed files in `given` before `executing_the_agent`. The agent sees them under `this.workspace`:
+
+```ts
+import { access, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { describe, expect } from "vitest";
+import test, { withAspect, withTestOptions } from "vitest-gwt";
+import {
+  type AgentContext,
+  a_workspace,
+  agent,
+  cleanup_workspace,
+  executing_the_agent,
+  the_prompt,
+} from "agent-gwt";
+
+describe("with a workspace", () => {
+  withAspect(agent({ name: "cursor", model: "auto" }));
+  withAspect(a_workspace, cleanup_workspace);
+
+  withTestOptions((opts) => (opts.timeout = 60 * 1000));
+
+  test("can read the workspace", {
+    given: {
+      the_prompt: the_prompt(
+        "read @sample.txt, and answer the question. Write a new file 'answer.sentinel' with your answer",
+      ),
+      sample_text_file,
+    },
+    when: {
+      executing_the_agent,
+    },
+    then: {
+      sentinel_file_exists,
+      question_is_answered,
+    },
+  });
+});
+
+type Context = AgentContext & {
+  // extend with your own fields
+};
+
+async function sample_text_file(this: Context) {
+  await writeFile(
+    join(this.workspace, "sample.txt"),
+    "what is the answer to life, the universe, and everything?",
+    "utf-8",
+  );
+}
+
+async function sentinel_file_exists(this: Context) {
+  await access(join(this.workspace, "answer.sentinel"));
+}
+
+async function question_is_answered(this: Context) {
+  const contents = await readFile(join(this.workspace, "answer.sentinel"), "utf-8");
+
+  expect(contents.toLowerCase()).toContain("42");
 }
 ```
 
@@ -131,7 +200,7 @@ export default async function setup() {
 ```
 
 ```ts
-agent({ name: "cursor", image: "my-app/agent:local", model: "auto" })
+agent({ name: "cursor", image: "my-app/agent:local", model: "auto" });
 ```
 
 The base uses Arch/`pacman` (glibc). Alpine will not run the Cursor CLI.
@@ -144,7 +213,7 @@ Suite-level `withAspect` **before** hook that:
 2. Sets `this.model` when provided; sets `this.image` from `options.image` or the resolved agent
 3. Asserts that Docker image already exists (`docker image inspect`) — it does **not** build. Build once in `globalSetup` with `buildAgentImage(...)` so parallel test files do not race
 
-Workspace teardown stays separate via `cleanup_workspace` in the aspect **after** hook.
+Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)`.
 
 ## What `executing_the_agent` does
 
@@ -154,19 +223,23 @@ Workspace teardown stays separate via `cleanup_workspace` in the aspect **after*
 
 ## Exports
 
-| Export                  | Role                                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------------------- |
-| `AgentContext`          | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)                      |
-| `agent(opts)`           | `withAspect` before — `{ name, model?, image? }`                                          |
-| `buildAgentImage(name)` | Suite setup — builds base + agent image (use in vitest `globalSetup`)                     |
-| `buildBaseImage()`      | Builds `agent-gwt/base:local` only                                                        |
-| `buildDockerImage(...)` | Builds an arbitrary Dockerfile (e.g. toolchain overlay)                                   |
-| `a_workspace`           | `given` — creates `/tmp/.agents-gwt/ws-*`                                                 |
-| `cleanup_workspace`     | Remove the temp workspace (use in `withAspect` afterEach)                                 |
-| `the_prompt(text)`      | Curried `given` — sets `this.prompt`                                                      |
-| `executing_the_agent`   | `when` — runs `this.agent.run(...)`                                                       |
+| Export | Role |
+| --- | --- |
+| `AgentContext` | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …) |
+| `agent(opts)` | `withAspect` before — `{ name, model?, image? }` |
+| `buildAgentImage(name)` | Suite setup — builds base + agent image (use in vitest `globalSetup`) |
+| `buildBaseImage()` | Builds `agent-gwt/base:local` only |
+| `buildDockerImage(...)` | Builds an arbitrary Dockerfile (e.g. toolchain overlay) |
+| `a_workspace` | Creates `/tmp/.agents-gwt/ws-*` (use in `withAspect` before, or in `given`) |
+| `cleanup_workspace` | Remove the temp workspace (use in `withAspect` after) |
+| `the_prompt(text)` | Curried `given` — sets `this.prompt` |
+| `executing_the_agent` | `when` — runs `this.agent.run(...)` |
 
 ## Isolation notes
 
 - **Credentials only:** settings, MCP config, projects, and skills from `~/.cursor` are not mounted.
 - **Non-root:** the container process uses your host uid/gid so workspace files are owned by you.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for PR prereleases, architecture, and how to add agents. Publishing details live in [PUBLISHING.md](PUBLISHING.md).
