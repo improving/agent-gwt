@@ -4,12 +4,13 @@ import type { BuildDockerRunArgsOptions, DockerRunResult, DockerRunner } from ".
 
 export type {
   BuildDockerRunArgsOptions,
+  DockerRunOptions,
   DockerRunResult,
   DockerRunner,
   DockerVolumeMount,
 } from "./types.js";
 
-export const runDocker: DockerRunner = (args) =>
+export const runDocker: DockerRunner = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const child = spawn("docker", args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -17,12 +18,21 @@ export const runDocker: DockerRunner = (args) =>
 
     let stdout = "";
     let stderr = "";
+    const inheritOutput = options.inheritOutput === true;
 
     child.stdout.on("data", (chunk: Buffer | string) => {
-      stdout += chunk.toString();
+      const text = chunk.toString();
+      stdout += text;
+      if (inheritOutput) {
+        process.stdout.write(text);
+      }
     });
     child.stderr.on("data", (chunk: Buffer | string) => {
-      stderr += chunk.toString();
+      const text = chunk.toString();
+      stderr += text;
+      if (inheritOutput) {
+        process.stderr.write(text);
+      }
     });
 
     child.on("error", (error: Error) => {

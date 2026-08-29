@@ -1,4 +1,5 @@
-import { buildDockerImage, ensureDockerImage } from "./ensure-image.js";
+import { buildDockerImage } from "./build-agent-image.js";
+import { ensureDockerImage } from "./ensure-image.js";
 import type { Agent, AgentResult, AgentRunBindingsOptions, RunAgentOptions } from "./types.js";
 
 export type CreateAgentBindings = {

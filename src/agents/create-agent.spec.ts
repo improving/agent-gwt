@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, vi } from "vitest";
 import test from "vitest-gwt";
 
+import * as buildAgentImageModule from "./build-agent-image.js";
 import { createAgent } from "./create-agent.js";
 import * as ensureImageModule from "./ensure-image.js";
 import type { Agent, AgentRunBindingsOptions, RunAgentOptions } from "./types.js";
@@ -58,7 +59,7 @@ describe("createAgent", () => {
 function stub_ensure_and_build(this: Context) {
   this.runCalls = 0;
   vi.spyOn(ensureImageModule, "ensureDockerImage").mockResolvedValue();
-  vi.spyOn(ensureImageModule, "buildDockerImage").mockResolvedValue();
+  vi.spyOn(buildAgentImageModule, "buildDockerImage").mockResolvedValue();
 }
 
 async function creating_and_running_agent(this: Context) {
@@ -121,7 +122,7 @@ function ensure_docker_image_used_bound_image() {
 }
 
 function build_docker_image_used_bound_paths() {
-  expect(ensureImageModule.buildDockerImage).toHaveBeenCalledWith("agent-gwt/test:local", {
+  expect(buildAgentImageModule.buildDockerImage).toHaveBeenCalledWith("agent-gwt/test:local", {
     dockerfileRelative: "docker/cursor/Dockerfile",
     packageRoot: "/resolved/package",
   });

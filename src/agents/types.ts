@@ -27,7 +27,12 @@ export type DockerRunResult = {
   stderr: string;
 };
 
-export type DockerRunner = (args: string[]) => Promise<DockerRunResult>;
+export type DockerRunOptions = {
+  /** Forward docker stdout/stderr to the parent process while still capturing. */
+  inheritOutput?: boolean;
+};
+
+export type DockerRunner = (args: string[], options?: DockerRunOptions) => Promise<DockerRunResult>;
 
 export type DockerVolumeMount = {
   host: string;
