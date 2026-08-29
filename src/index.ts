@@ -27,7 +27,14 @@ export {
 
 export { resolveAgent, agentRegistry } from "./agents/registry.js";
 export { createAgent, type CreateAgentBindings } from "./agents/create-agent.js";
-export { buildAgentImage, buildDockerImage, resetBuiltImages } from "./agents/build-agent-image.js";
+export {
+  buildAgentImage,
+  buildBaseImage,
+  buildDockerImage,
+  resetBuiltImages,
+  type BuildBaseImageOptions,
+} from "./agents/build-agent-image.js";
+export { BASE_IMAGE, BASE_DOCKERFILE_RELATIVE } from "./agents/base/index.js";
 export { PACKAGE_ROOT } from "./package-root.js";
 export { ensureDockerImage } from "./agents/ensure-image.js";
 export { parseAgentJsonOutput } from "./agents/parse-result.js";

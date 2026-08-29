@@ -1,4 +1,4 @@
-import { buildDockerImage } from "./build-agent-image.js";
+import { buildBaseImage, buildDockerImage } from "./build-agent-image.js";
 import { ensureDockerImage } from "./ensure-image.js";
 import type { Agent, AgentResult, AgentRunBindingsOptions, RunAgentOptions } from "./types.js";
 
@@ -16,6 +16,7 @@ export function createAgent(bindings: CreateAgentBindings): Agent {
       await ensureDockerImage(bindings.image);
     },
     buildImage: async () => {
+      await buildBaseImage();
       await buildDockerImage(bindings.image, {
         dockerfileRelative: bindings.dockerfileRelative,
         packageRoot: bindings.packageRoot,
@@ -24,7 +25,7 @@ export function createAgent(bindings: CreateAgentBindings): Agent {
     run: (options: RunAgentOptions) =>
       bindings.run({
         ...options,
-        image: bindings.image,
+        image: options.image ?? bindings.image,
       }),
   };
 }

@@ -21,6 +21,7 @@ pnpm add -D agent-gwt vitest vitest-gwt
 import { buildAgentImage } from "agent-gwt";
 
 export default async function setup() {
+  // Builds agent-gwt/base:local then agent-gwt/cursor-cli:local
   await buildAgentImage("cursor");
 }
 ```
@@ -89,33 +90,81 @@ async function readme_exists(this: Context) {
 }
 ```
 
+## Docker images
+
+| Image | Role |
+| --- | --- |
+| `agent-gwt/base:local` | Shared Arch Linux base (`yay` + `aur` user). Used by all agents. |
+| `agent-gwt/cursor-cli:local` | Cursor CLI on top of the base |
+
+`buildAgentImage("cursor")` builds the base first, then the Cursor image.
+
+### Extending with toolchains
+
+Install packages in a child image, then point tests at that tag:
+
+```dockerfile
+# docker/agent.Dockerfile
+FROM agent-gwt/cursor-cli:local
+
+# Official Arch packages (as root)
+RUN pacman -Sy --noconfirm --needed nodejs npm python rust \
+  && pacman -Scc --noconfirm
+
+# AUR packages (build-time only — yay refuses root)
+USER aur
+RUN yay -S --noconfirm --needed some-aur-package
+USER root
+```
+
+```ts
+// vitest.global-setup.ts
+import { buildAgentImage, buildDockerImage } from "agent-gwt";
+
+export default async function setup() {
+  await buildAgentImage("cursor");
+  await buildDockerImage("my-app/agent:local", {
+    dockerfileRelative: "docker/agent.Dockerfile",
+    packageRoot: process.cwd(),
+  });
+}
+```
+
+```ts
+agent({ name: "cursor", image: "my-app/agent:local", model: "auto" })
+```
+
+The base uses Arch/`pacman` (glibc). Alpine will not run the Cursor CLI.
+
 ## What `agent` does
 
 Suite-level `withAspect` **before** hook that:
 
 1. Resolves `name` via the agents registry and sets `this.agent`
-2. Sets `this.model` on the aspect context when provided; sets `this.image` from the resolved agent
-3. Asserts the Docker image already exists (`docker image inspect`) — it does **not** build. Build once in `globalSetup` with `buildAgentImage(...)` so parallel test files do not race
+2. Sets `this.model` when provided; sets `this.image` from `options.image` or the resolved agent
+3. Asserts that Docker image already exists (`docker image inspect`) — it does **not** build. Build once in `globalSetup` with `buildAgentImage(...)` so parallel test files do not race
 
 Workspace teardown stays separate via `cleanup_workspace` in the aspect **after** hook.
 
 ## What `executing_the_agent` does
 
 1. Requires `this.workspace`, `this.prompt`, and `this.agent`
-2. Calls `this.agent.run(...)` (Cursor: `docker run` with credentials-only mount + `agent -p --force --output-format json`)
+2. Calls `this.agent.run(...)` with `this.image` (Cursor: `docker run` with credentials-only mount + `agent -p --force --output-format json`)
 3. Sets `this.agentResult` to the parsed JSON
 
 ## Exports
 
-| Export                  | Role                                                                    |
-| ----------------------- | ----------------------------------------------------------------------- |
-| `AgentContext`          | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)    |
-| `agent(opts)`           | `withAspect` before — `{ name, model? }` (image comes from the agent)   |
-| `buildAgentImage(name)` | Suite setup — builds the agent image once (use in vitest `globalSetup`) |
-| `a_workspace`           | `given` — creates `/tmp/.agents-gwt/ws-*`                               |
-| `cleanup_workspace`     | Remove the temp workspace (use in `withAspect` afterEach)               |
-| `the_prompt(text)`      | Curried `given` — sets `this.prompt`                                    |
-| `executing_the_agent`   | `when` — runs `this.agent.run(...)`                                     |
+| Export                  | Role                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `AgentContext`          | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)                      |
+| `agent(opts)`           | `withAspect` before — `{ name, model?, image? }`                                          |
+| `buildAgentImage(name)` | Suite setup — builds base + agent image (use in vitest `globalSetup`)                     |
+| `buildBaseImage()`      | Builds `agent-gwt/base:local` only                                                        |
+| `buildDockerImage(...)` | Builds an arbitrary Dockerfile (e.g. toolchain overlay)                                   |
+| `a_workspace`           | `given` — creates `/tmp/.agents-gwt/ws-*`                                                 |
+| `cleanup_workspace`     | Remove the temp workspace (use in `withAspect` afterEach)                                 |
+| `the_prompt(text)`      | Curried `given` — sets `this.prompt`                                                      |
+| `executing_the_agent`   | `when` — runs `this.agent.run(...)`                                                       |
 
 ## Isolation notes
 

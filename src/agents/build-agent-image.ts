@@ -1,6 +1,8 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
+import { PACKAGE_ROOT } from "../package-root.js";
+import { BASE_DOCKERFILE_RELATIVE, BASE_IMAGE } from "./base/constants.js";
 import { runDocker } from "./docker.js";
 import type { AgentName } from "./registry.js";
 import { resolveAgent } from "./registry.js";
@@ -34,6 +36,19 @@ export async function buildDockerImage(
 
   builtImages.set(memoKey, pending);
   return pending;
+}
+
+export type BuildBaseImageOptions = {
+  dockerRunner?: DockerRunner;
+  packageRoot?: string;
+};
+
+export async function buildBaseImage(options: BuildBaseImageOptions = {}): Promise<void> {
+  await buildDockerImage(BASE_IMAGE, {
+    dockerfileRelative: BASE_DOCKERFILE_RELATIVE,
+    packageRoot: options.packageRoot ?? PACKAGE_ROOT,
+    ...(options.dockerRunner !== undefined ? { dockerRunner: options.dockerRunner } : {}),
+  });
 }
 
 export async function buildAgentImage(name: AgentName): Promise<void> {

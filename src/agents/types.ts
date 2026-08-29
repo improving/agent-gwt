@@ -4,6 +4,8 @@ export type RunAgentOptions = {
   workspace: string;
   prompt: string;
   model?: string;
+  /** Override the agent's default image (e.g. a toolchain-extended tag). */
+  image?: string;
 };
 
 export type AgentRunBindingsOptions = RunAgentOptions & {
@@ -19,6 +21,8 @@ export type Agent = {
 
 export type AgentOptions = {
   model?: string;
+  /** Docker image tag to ensure and run (defaults to the resolved agent's image). */
+  image?: string;
 };
 
 export type DockerRunResult = {

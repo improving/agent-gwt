@@ -6,24 +6,31 @@ import { join } from "node:path";
 import { PACKAGE_ROOT } from "./package-root.js";
 
 type Context = {
-  dockerfile: string;
+  baseDockerfile: string;
+  cursorDockerfile: string;
 };
 
 describe("PACKAGE_ROOT", () => {
-  test("points at the package root that contains the Cursor Dockerfile", {
+  test("points at the package root that contains the base and Cursor Dockerfiles", {
     when: {
-      resolving_cursor_dockerfile,
+      resolving_dockerfiles,
     },
     then: {
-      dockerfile_exists,
+      base_dockerfile_exists,
+      cursor_dockerfile_exists,
     },
   });
 });
 
-function resolving_cursor_dockerfile(this: Context) {
-  this.dockerfile = join(PACKAGE_ROOT, "docker", "cursor", "Dockerfile");
+function resolving_dockerfiles(this: Context) {
+  this.baseDockerfile = join(PACKAGE_ROOT, "docker", "base", "Dockerfile");
+  this.cursorDockerfile = join(PACKAGE_ROOT, "docker", "cursor", "Dockerfile");
 }
 
-function dockerfile_exists(this: Context) {
-  expect(existsSync(this.dockerfile)).toBe(true);
+function base_dockerfile_exists(this: Context) {
+  expect(existsSync(this.baseDockerfile)).toBe(true);
+}
+
+function cursor_dockerfile_exists(this: Context) {
+  expect(existsSync(this.cursorDockerfile)).toBe(true);
 }

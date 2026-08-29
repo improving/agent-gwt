@@ -18,6 +18,7 @@ export async function executing_the_agent(this: AgentContext): Promise<void> {
   this.agentResult = await this.agent.run({
     workspace: this.workspace,
     prompt: this.prompt,
+    image: this.image,
     ...(this.model !== undefined ? { model: this.model } : {}),
   });
 }

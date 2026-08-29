@@ -4,7 +4,13 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { buildAgentImage, buildDockerImage, resetBuiltImages } from "./build-agent-image.js";
+import {
+  buildAgentImage,
+  buildBaseImage,
+  buildDockerImage,
+  resetBuiltImages,
+} from "./build-agent-image.js";
+import { BASE_DOCKERFILE_RELATIVE, BASE_IMAGE } from "./base/constants.js";
 import { agentRegistry } from "./registry.js";
 import type { DockerRunOptions, DockerRunner } from "./types.js";
 
@@ -98,6 +104,24 @@ describe("buildDockerImage", () => {
   });
 });
 
+describe("buildBaseImage", () => {
+  test("builds the shared base image from the package root", {
+    given: {
+      reset_memo,
+      package_with_base_dockerfile,
+      inspect_fails_then_build_succeeds,
+    },
+    when: {
+      building_base_image,
+    },
+    then: {
+      inspect_was_called,
+      build_was_called,
+      build_targeted_base_image,
+    },
+  });
+});
+
 describe("buildAgentImage", () => {
   test("delegates to the resolved agent's buildImage", {
     given: {
@@ -118,6 +142,36 @@ async function package_with_dockerfile(this: BuildContext) {
   tempRoots.push(this.packageRoot);
   await mkdir(join(this.packageRoot, "docker", "cursor"), { recursive: true });
   await writeFile(join(this.packageRoot, this.dockerfileRelative), "FROM scratch\n");
+}
+
+async function package_with_base_dockerfile(this: BuildContext) {
+  this.image = BASE_IMAGE;
+  this.dockerfileRelative = BASE_DOCKERFILE_RELATIVE;
+  this.packageRoot = await mkdtemp(join(tmpdir(), "agent-gwt-pkg-"));
+  tempRoots.push(this.packageRoot);
+  this.inspectCalls = 0;
+  this.buildCalls = 0;
+  await mkdir(join(this.packageRoot, "docker", "base"), { recursive: true });
+  await writeFile(join(this.packageRoot, this.dockerfileRelative), "FROM scratch\n");
+}
+
+async function building_base_image(this: BuildContext) {
+  await buildBaseImage({
+    packageRoot: this.packageRoot,
+    dockerRunner: this.dockerRunner,
+  });
+}
+
+function build_targeted_base_image(this: BuildContext) {
+  expect(this.lastBuildArgs).toEqual([
+    "build",
+    "--progress=plain",
+    "-t",
+    BASE_IMAGE,
+    "-f",
+    join(this.packageRoot, BASE_DOCKERFILE_RELATIVE),
+    this.packageRoot,
+  ]);
 }
 
 function reset_memo() {
