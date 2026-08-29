@@ -27,8 +27,9 @@ export {
 
 export { resolveAgent, agentRegistry } from "./agents/registry.js";
 export { createAgent, type CreateAgentBindings } from "./agents/create-agent.js";
+export { buildAgentImage } from "./agents/build-agent-image.js";
 export { PACKAGE_ROOT } from "./package-root.js";
-export { ensureDockerImage, resetEnsuredImages } from "./agents/ensure-image.js";
+export { ensureDockerImage, buildDockerImage, resetEnsuredImages } from "./agents/ensure-image.js";
 export { parseAgentJsonOutput } from "./agents/parse-result.js";
 
 export {

@@ -1,10 +1,5 @@
-import { ensureDockerImage } from "./ensure-image.js";
-import type {
-  Agent,
-  AgentResult,
-  AgentRunBindingsOptions,
-  RunAgentOptions,
-} from "./types.js";
+import { buildDockerImage, ensureDockerImage } from "./ensure-image.js";
+import type { Agent, AgentResult, AgentRunBindingsOptions, RunAgentOptions } from "./types.js";
 
 export type CreateAgentBindings = {
   dockerfileRelative: string;
@@ -17,7 +12,10 @@ export function createAgent(bindings: CreateAgentBindings): Agent {
   return {
     image: bindings.image,
     ensureImage: async () => {
-      await ensureDockerImage(bindings.image, {
+      await ensureDockerImage(bindings.image);
+    },
+    buildImage: async () => {
+      await buildDockerImage(bindings.image, {
         dockerfileRelative: bindings.dockerfileRelative,
         packageRoot: bindings.packageRoot,
       });

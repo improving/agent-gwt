@@ -1,10 +1,6 @@
 import { spawn } from "node:child_process";
 
-import type {
-  BuildDockerRunArgsOptions,
-  DockerRunResult,
-  DockerRunner,
-} from "./types.js";
+import type { BuildDockerRunArgsOptions, DockerRunResult, DockerRunner } from "./types.js";
 
 export type {
   BuildDockerRunArgsOptions,
@@ -41,12 +37,7 @@ export const runDocker: DockerRunner = (args) =>
   });
 
 export function buildDockerRunArgs(options: BuildDockerRunArgsOptions): string[] {
-  const args = [
-    "run",
-    "--rm",
-    "--user",
-    `${options.uid}:${options.gid}`,
-  ];
+  const args = ["run", "--rm", "--user", `${options.uid}:${options.gid}`];
 
   if (options.env !== undefined) {
     for (const [key, value] of Object.entries(options.env)) {

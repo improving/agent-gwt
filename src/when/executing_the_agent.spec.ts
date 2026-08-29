@@ -76,6 +76,7 @@ function stubAgent(this: Context): void {
   this.agent = {
     image: "agent-gwt/test:local",
     ensureImage: async () => undefined,
+    buildImage: async () => undefined,
     run: this.runMock as Agent["run"],
   };
 }

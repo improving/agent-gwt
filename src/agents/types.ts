@@ -13,6 +13,7 @@ export type AgentRunBindingsOptions = RunAgentOptions & {
 export type Agent = {
   image: string;
   ensureImage: () => Promise<void>;
+  buildImage: () => Promise<void>;
   run: (options: RunAgentOptions) => Promise<AgentResult>;
 };
 
@@ -45,6 +46,10 @@ export type BuildDockerRunArgsOptions = {
 };
 
 export type EnsureDockerImageOptions = {
+  dockerRunner?: DockerRunner;
+};
+
+export type BuildDockerImageOptions = {
   dockerfileRelative: string;
   packageRoot: string;
   dockerRunner?: DockerRunner;

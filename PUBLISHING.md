@@ -18,14 +18,14 @@ pnpm publish --access public --ignore-scripts
 
 On [npmjs.com](https://www.npmjs.com) → `agent-gwt` → Settings → Trusted Publisher:
 
-| Field | Value |
-| ----- | ----- |
-| Provider | GitHub Actions |
-| Organization or user | `improving` |
-| Repository | `agent-gwt` |
-| Workflow filename | `publish.yml` |
-| Environment name | _(leave empty unless you add a GitHub Environment)_ |
-| Allowed actions | **both** `npm publish` and `npm stage publish` |
+| Field                | Value                                               |
+| -------------------- | --------------------------------------------------- |
+| Provider             | GitHub Actions                                      |
+| Organization or user | `improving`                                         |
+| Repository           | `agent-gwt`                                         |
+| Workflow filename    | `publish.yml`                                       |
+| Environment name     | _(leave empty unless you add a GitHub Environment)_ |
+| Allowed actions      | **both** `npm publish` and `npm stage publish`      |
 
 Filename must match exactly (including `.yml`). Only one trusted publisher workflow is allowed per package — that is why PR prereleases and merge staging share `publish.yml`.
 
@@ -39,19 +39,19 @@ The release job commits `chore: release vX.Y.Z` to `main` with `GITHUB_TOKEN` (t
 
 ## How it works
 
-| Event | What happens |
-| ----- | ------------ |
-| PR open/sync/label against `main` | Build → `pnpm publish --tag pr-<n>` as `<next>-build.<run>` |
-| PR merged to `main` | `npm pack agent-gwt@pr-<n>` → rewrite version → `pnpm stage publish` → bump `package.json` on `main` |
-| Maintainer | `pnpm stage approve <id>` (2FA) or Approve on npmjs.com |
+| Event                             | What happens                                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| PR open/sync/label against `main` | Build → `pnpm publish --tag pr-<n>` as `<next>-build.<run>`                                          |
+| PR merged to `main`               | `npm pack agent-gwt@pr-<n>` → rewrite version → `pnpm stage publish` → bump `package.json` on `main` |
+| Maintainer                        | `pnpm stage approve <id>` (2FA) or Approve on npmjs.com                                              |
 
 ### Version labels
 
-| Label | Bump from `main`'s `package.json` |
-| ----- | ---------------------------------- |
-| _(none)_ | patch |
-| `minor` | minor |
-| `major` | major |
+| Label    | Bump from `main`'s `package.json` |
+| -------- | --------------------------------- |
+| _(none)_ | patch                             |
+| `minor`  | minor                             |
+| `major`  | major                             |
 
 If both `major` and `minor` are present, `major` wins. The release version is recomputed from `main` at merge time so concurrent PRs stay monotonic.
 

@@ -19,7 +19,7 @@ afterEach(() => {
 describe("createAgent", () => {
   test("exposes image and injects it when delegating run", {
     given: {
-      stub_ensure,
+      stub_ensure_and_build,
     },
     when: {
       creating_and_running_agent,
@@ -30,22 +30,35 @@ describe("createAgent", () => {
     },
   });
 
-  test("ensureImage uses the bound packageRoot and image", {
+  test("ensureImage asserts the bound image exists", {
     given: {
-      stub_ensure,
+      stub_ensure_and_build,
     },
     when: {
       creating_and_ensuring_image,
     },
     then: {
-      ensure_docker_image_used_bound_paths,
+      ensure_docker_image_used_bound_image,
+    },
+  });
+
+  test("buildImage builds with the bound packageRoot and image", {
+    given: {
+      stub_ensure_and_build,
+    },
+    when: {
+      creating_and_building_image,
+    },
+    then: {
+      build_docker_image_used_bound_paths,
     },
   });
 });
 
-function stub_ensure(this: Context) {
+function stub_ensure_and_build(this: Context) {
   this.runCalls = 0;
   vi.spyOn(ensureImageModule, "ensureDockerImage").mockResolvedValue();
+  vi.spyOn(ensureImageModule, "buildDockerImage").mockResolvedValue();
 }
 
 async function creating_and_running_agent(this: Context) {
@@ -78,6 +91,17 @@ async function creating_and_ensuring_image(this: Context) {
   await this.agent.ensureImage();
 }
 
+async function creating_and_building_image(this: Context) {
+  this.agent = createAgent({
+    dockerfileRelative: "docker/cursor/Dockerfile",
+    packageRoot: "/resolved/package",
+    image: "agent-gwt/test:local",
+    run: async () => ({}),
+  });
+
+  await this.agent.buildImage();
+}
+
 function image_is_set(this: Context) {
   expect(this.agent.image).toBe("agent-gwt/test:local");
 }
@@ -92,8 +116,12 @@ function run_was_delegated_with_image(this: Context) {
   expect(this.result).toEqual({ ok: true });
 }
 
-function ensure_docker_image_used_bound_paths() {
-  expect(ensureImageModule.ensureDockerImage).toHaveBeenCalledWith("agent-gwt/test:local", {
+function ensure_docker_image_used_bound_image() {
+  expect(ensureImageModule.ensureDockerImage).toHaveBeenCalledWith("agent-gwt/test:local");
+}
+
+function build_docker_image_used_bound_paths() {
+  expect(ensureImageModule.buildDockerImage).toHaveBeenCalledWith("agent-gwt/test:local", {
     dockerfileRelative: "docker/cursor/Dockerfile",
     packageRoot: "/resolved/package",
   });
