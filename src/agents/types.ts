@@ -4,6 +4,8 @@ export type RunAgentOptions = {
   workspace: string;
   prompt: string;
   model?: string;
+  /** Override the agent's default image (e.g. a toolchain-extended tag). */
+  image?: string;
 };
 
 export type AgentRunBindingsOptions = RunAgentOptions & {
@@ -13,11 +15,14 @@ export type AgentRunBindingsOptions = RunAgentOptions & {
 export type Agent = {
   image: string;
   ensureImage: () => Promise<void>;
+  buildImage: () => Promise<void>;
   run: (options: RunAgentOptions) => Promise<AgentResult>;
 };
 
 export type AgentOptions = {
   model?: string;
+  /** Docker image tag to ensure and run (defaults to the resolved agent's image). */
+  image?: string;
 };
 
 export type DockerRunResult = {
@@ -26,7 +31,12 @@ export type DockerRunResult = {
   stderr: string;
 };
 
-export type DockerRunner = (args: string[]) => Promise<DockerRunResult>;
+export type DockerRunOptions = {
+  /** Forward docker stdout/stderr to the parent process while still capturing. */
+  inheritOutput?: boolean;
+};
+
+export type DockerRunner = (args: string[], options?: DockerRunOptions) => Promise<DockerRunResult>;
 
 export type DockerVolumeMount = {
   host: string;
@@ -45,6 +55,10 @@ export type BuildDockerRunArgsOptions = {
 };
 
 export type EnsureDockerImageOptions = {
+  dockerRunner?: DockerRunner;
+};
+
+export type BuildDockerImageOptions = {
   dockerfileRelative: string;
   packageRoot: string;
   dockerRunner?: DockerRunner;

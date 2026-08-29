@@ -76,6 +76,7 @@ function stubAgent(this: Context): void {
   this.agent = {
     image: "agent-gwt/test:local",
     ensureImage: async () => undefined,
+    buildImage: async () => undefined,
     run: this.runMock as Agent["run"],
   };
 }
@@ -123,6 +124,7 @@ function agent_was_called_with_workspace_and_prompt(this: Context) {
   expect(this.runMock).toHaveBeenCalledWith({
     workspace: "/tmp/.agents-gwt/ws-test",
     prompt: "Create a README",
+    image: "agent-gwt/test:local",
   });
 }
 
@@ -130,6 +132,7 @@ function agent_was_called_with_model(this: Context) {
   expect(this.runMock).toHaveBeenCalledWith({
     workspace: "/tmp/.agents-gwt/ws-test",
     prompt: "Create a README",
+    image: "agent-gwt/test:local",
     model: "composer-2",
   });
 }

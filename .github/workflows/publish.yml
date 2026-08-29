@@ -27,15 +27,15 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Checkout PR
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/setup@v2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
           registry-url: https://registry.npmjs.org
@@ -98,16 +98,16 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/setup@v2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
           registry-url: https://registry.npmjs.org
@@ -133,23 +133,47 @@ jobs:
           NEXT: ${{ steps.version.outputs.next }}
         run: |
           set -euo pipefail
+          # Work outside the git checkout — pnpm stage publish refuses unclean trees
+          workdir="${RUNNER_TEMP}/agent-gwt-stage"
+          mkdir -p "${workdir}"
+          cd "${workdir}"
           # Avoid empty _authToken from setup-node's .npmrc when fetching a public package
           npm pack "agent-gwt@${PR_TAG}" --userconfig /dev/null --registry https://registry.npmjs.org
           tarball="$(ls -1 agent-gwt-*.tgz | head -n1)"
-          echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
           mkdir -p staged
           tar -xzf "${tarball}" -C staged
           jq --arg v "${NEXT}" '.version = $v' staged/package/package.json > staged/package/package.json.tmp
           mv staged/package/package.json.tmp staged/package/package.json
-          echo "Rewrote staged package version to ${NEXT}"
+          echo "package_dir=${workdir}/staged/package" >> "$GITHUB_OUTPUT"
+          echo "Rewrote staged package version to ${NEXT} at ${workdir}/staged/package"
 
       - name: Stage release
         id: stage
+        env:
+          PACKAGE_DIR: ${{ steps.pack.outputs.package_dir }}
         run: |
           set -euo pipefail
-          output="$(pnpm stage publish ./staged/package --access public --tag latest --json)"
-          echo "${output}"
-          stage_id="$(printf '%s\n' "${output}" | jq -r 'to_entries[0].value.id // empty')"
+          # Keep stderr (WARN/OIDC logs) out of --json stdout so jq can parse.
+          err="$(mktemp)"
+          set +e
+          output="$(pnpm stage publish "${PACKAGE_DIR}" --access public --tag latest --json 2>"${err}")"
+          status=$?
+          set -e
+          cat "${err}" >&2 || true
+          rm -f "${err}"
+          printf '%s\n' "${output}"
+          if [[ "${status}" -ne 0 ]]; then
+            exit "${status}"
+          fi
+          if ! printf '%s\n' "${output}" | jq -e 'type == "object"' >/dev/null; then
+            echo "Stage publish did not return JSON" >&2
+            exit 1
+          fi
+          if printf '%s\n' "${output}" | jq -e '.error' >/dev/null; then
+            echo "Stage publish returned an error payload" >&2
+            exit 1
+          fi
+          stage_id="$(printf '%s\n' "${output}" | jq -r 'to_entries[0].value.stageId // empty')"
           echo "stage_id=${stage_id}" >> "$GITHUB_OUTPUT"
           {
             echo "## Staged release"

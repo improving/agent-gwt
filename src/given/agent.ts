@@ -1,5 +1,6 @@
 import type { AgentName } from "../agents/registry.js";
 import { resolveAgent } from "../agents/registry.js";
+import { ensureDockerImage } from "../agents/ensure-image.js";
 import type { AgentContext, AgentOptions } from "../types.js";
 
 export type ConfigureAgentOptions = AgentOptions & {
@@ -11,12 +12,12 @@ export function agent(options: ConfigureAgentOptions) {
 
   return async function (this: AgentContext): Promise<void> {
     this.agent = resolved;
-    this.image = resolved.image;
+    this.image = options.image ?? resolved.image;
 
     if (options.model !== undefined) {
       this.model = options.model;
     }
 
-    await this.agent.ensureImage();
+    await ensureDockerImage(this.image);
   };
 }

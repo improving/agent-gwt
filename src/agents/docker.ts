@@ -1,19 +1,16 @@
 import { spawn } from "node:child_process";
 
-import type {
-  BuildDockerRunArgsOptions,
-  DockerRunResult,
-  DockerRunner,
-} from "./types.js";
+import type { BuildDockerRunArgsOptions, DockerRunResult, DockerRunner } from "./types.js";
 
 export type {
   BuildDockerRunArgsOptions,
+  DockerRunOptions,
   DockerRunResult,
   DockerRunner,
   DockerVolumeMount,
 } from "./types.js";
 
-export const runDocker: DockerRunner = (args) =>
+export const runDocker: DockerRunner = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const child = spawn("docker", args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -21,12 +18,21 @@ export const runDocker: DockerRunner = (args) =>
 
     let stdout = "";
     let stderr = "";
+    const inheritOutput = options.inheritOutput === true;
 
     child.stdout.on("data", (chunk: Buffer | string) => {
-      stdout += chunk.toString();
+      const text = chunk.toString();
+      stdout += text;
+      if (inheritOutput) {
+        process.stdout.write(text);
+      }
     });
     child.stderr.on("data", (chunk: Buffer | string) => {
-      stderr += chunk.toString();
+      const text = chunk.toString();
+      stderr += text;
+      if (inheritOutput) {
+        process.stderr.write(text);
+      }
     });
 
     child.on("error", (error: Error) => {
@@ -41,12 +47,7 @@ export const runDocker: DockerRunner = (args) =>
   });
 
 export function buildDockerRunArgs(options: BuildDockerRunArgsOptions): string[] {
-  const args = [
-    "run",
-    "--rm",
-    "--user",
-    `${options.uid}:${options.gid}`,
-  ];
+  const args = ["run", "--rm", "--user", `${options.uid}:${options.gid}`];
 
   if (options.env !== undefined) {
     for (const [key, value] of Object.entries(options.env)) {

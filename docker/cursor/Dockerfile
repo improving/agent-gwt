@@ -1,22 +1,17 @@
-FROM ubuntu:24.04
+# Cursor agent image. Shared Arch/yay base is agent-gwt/base:local.
+# Extend with toolchains: FROM agent-gwt/cursor-cli:local
+FROM agent-gwt/base:local
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    bash \
-  && rm -rf /var/lib/apt/lists/*
-
-# Official Cursor CLI installer; copy binaries where any uid can execute them.
+# Official Cursor CLI installer; install under a world-readable path so
+# arbitrary host UIDs (docker --user) can run agent.
 RUN curl -fsSL https://cursor.com/install | bash \
-  && mkdir -p /usr/local/bin \
-  && find /root -type f \( -name 'agent' -o -name 'cursor-agent' \) 2>/dev/null \
-    | head -20 \
-    | while read -r bin; do cp -f "$bin" "/usr/local/bin/$(basename "$bin")"; done \
-  && if [ ! -e /usr/local/bin/agent ] && [ -e /usr/local/bin/cursor-agent ]; then \
-       ln -sf /usr/local/bin/cursor-agent /usr/local/bin/agent; \
-     fi \
-  && chmod a+rx /usr/local/bin/agent /usr/local/bin/cursor-agent 2>/dev/null || true \
+  && VERSION_DIR="$(find /root/.local/share/cursor-agent/versions -mindepth 1 -maxdepth 1 -type d | head -1)" \
+  && test -n "$VERSION_DIR" \
+  && mkdir -p /usr/local/lib /usr/local/bin \
+  && cp -a "$VERSION_DIR" /usr/local/lib/cursor-agent \
+  && ln -sf /usr/local/lib/cursor-agent/cursor-agent /usr/local/bin/cursor-agent \
+  && ln -sf /usr/local/lib/cursor-agent/cursor-agent /usr/local/bin/agent \
+  && chmod -R a+rX /usr/local/lib/cursor-agent \
   && command -v agent
 
 # Empty home for arbitrary host UIDs; only auth.json is bind-mounted at runtime.
