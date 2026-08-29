@@ -1,0 +1,27 @@
+{
+  "npm.scriptRunner": "vp",
+  "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "oxc.configPath": "./vite.config.ts",
+  "oxc.fmt.configPath": "./vite.config.ts",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
+  "files.watcherExclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    ".wireit/": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    ".wireit/": true
+  },
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    ".wireit/": true
+  }
+}

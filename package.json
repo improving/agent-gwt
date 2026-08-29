@@ -1,0 +1,121 @@
+{
+  "name": "agent-gwt",
+  "version": "0.1.0",
+  "description": "GWT step functions for repeatable agent tests",
+  "keywords": [
+    "agent",
+    "cursor",
+    "gwt",
+    "testing",
+    "vitest",
+    "vitest-gwt"
+  ],
+  "homepage": "https://github.com/improving/agent-gwt#readme",
+  "bugs": {
+    "url": "https://github.com/improving/agent-gwt/issues"
+  },
+  "license": "MIT",
+  "author": "Eric Siebeneich <eric.siebeneich@improving.com> (https://github.com/improving)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/improving/agent-gwt.git"
+  },
+  "files": [
+    "lib",
+    "src",
+    "docker",
+    "!**/*.spec.ts"
+  ],
+  "type": "module",
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.mjs",
+  "types": "./lib/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./lib/index.d.mts",
+        "default": "./lib/index.mjs"
+      },
+      "require": {
+        "types": "./lib/index.d.cts",
+        "default": "./lib/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "wireit",
+    "test": "wireit",
+    "lint": "wireit",
+    "test:coverage": "wireit",
+    "prepublishOnly": "wireit"
+  },
+  "wireit": {
+    "build": {
+      "command": "vp pack",
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json",
+        "vite.config.ts",
+        "!src/**/*.spec.ts"
+      ],
+      "output": [
+        "lib/**"
+      ]
+    },
+    "lint": {
+      "command": "vp lint src",
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json",
+        "vite.config.ts"
+      ]
+    },
+    "test": {
+      "command": "vitest run",
+      "files": [
+        "src/**/*.ts",
+        "vite.config.ts"
+      ]
+    },
+    "test:coverage": {
+      "command": "vitest run --coverage",
+      "files": [
+        "src/**/*.ts",
+        "vite.config.ts"
+      ],
+      "output": [
+        "coverage/**"
+      ]
+    },
+    "prepublishOnly": {
+      "dependencies": [
+        "lint",
+        "test",
+        "build"
+      ]
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "typescript": "^7.0.2",
+    "vite-plus": "^0.2.9",
+    "vitest": "^4.1.11",
+    "vitest-gwt": "^4.1.0",
+    "wireit": "^0.14.13"
+  },
+  "peerDependencies": {
+    "vitest": ">=4.0.0",
+    "vitest-gwt": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    },
+    "vitest-gwt": {
+      "optional": true
+    }
+  },
+  "packageManager": "pnpm@11.22.0"
+}
