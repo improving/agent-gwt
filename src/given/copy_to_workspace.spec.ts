@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -85,6 +85,31 @@ describe("copy_to_workspace", () => {
     },
   });
 
+  test("throws when a later glob matches no files", {
+    given: {
+      fixture_tree,
+      glob_fixtures_then_missing,
+    },
+    when: {
+      files_are_copied,
+    },
+    then: {
+      expect_error: empty_glob_error,
+    },
+  });
+
+  test("throws when globs is empty", {
+    given: {
+      empty_globs,
+    },
+    when: {
+      files_are_copied,
+    },
+    then: {
+      expect_error: empty_globs_error,
+    },
+  });
+
   test("throws when a file does not match base", {
     given: {
       fixture_tree,
@@ -100,6 +125,34 @@ describe("copy_to_workspace", () => {
     },
   });
 
+  test("throws when two sources map to the same destination", {
+    given: {
+      colliding_fixture_tree,
+      glob_fixtures_txt,
+      base_fixtures_star,
+    },
+    when: {
+      files_are_copied,
+    },
+    then: {
+      expect_error: colliding_destination_error,
+    },
+  });
+
+  test("copies once when two globs match the same file", {
+    given: {
+      fixture_tree,
+      overlapping_globs_same_files,
+    },
+    when: {
+      files_are_copied,
+    },
+    then: {
+      workspace_has_fixtures_suite_a_foo,
+      workspace_has_fixtures_suite_b_nested_bar,
+    },
+  });
+
   test("resolves globs from the current spec directory by default", {
     given: {
       glob_sibling_fixture,
@@ -110,6 +163,19 @@ describe("copy_to_workspace", () => {
     },
     then: {
       workspace_has_sibling_fixture,
+    },
+  });
+
+  test("resolves a relative from against the spec directory", {
+    given: {
+      glob_hello_txt,
+      relative_fixtures_from,
+    },
+    when: {
+      files_are_copied,
+    },
+    then: {
+      workspace_has_hello_at_root,
     },
   });
 });
@@ -137,6 +203,11 @@ async function file_outside_fixtures(this: Context) {
   await writeRelative(this.sourceRoot, "other/x.txt", "nope");
 }
 
+async function colliding_fixture_tree(this: Context) {
+  await writeRelative(this.sourceRoot, "fixtures/suite-a/foo.txt", "a");
+  await writeRelative(this.sourceRoot, "fixtures/suite-b/foo.txt", "b");
+}
+
 function glob_fixtures_txt(this: Context) {
   this.globs = ["fixtures/**/*.txt"];
 }
@@ -153,8 +224,24 @@ function glob_missing(this: Context) {
   this.globs = ["missing/**/*.txt"];
 }
 
+function glob_fixtures_then_missing(this: Context) {
+  this.globs = ["fixtures/**/*.txt", "missing/**/*.txt"];
+}
+
+function overlapping_globs_same_files(this: Context) {
+  this.globs = ["fixtures/suite-a/*.txt", "fixtures/**/*.txt"];
+}
+
+function empty_globs(this: Context) {
+  this.globs = [];
+}
+
 function glob_sibling_fixture(this: Context) {
   this.globs = ["copy_to_workspace.fixtures/hello.txt"];
+}
+
+function glob_hello_txt(this: Context) {
+  this.globs = ["hello.txt"];
 }
 
 function base_fixtures_star(this: Context) {
@@ -163,6 +250,10 @@ function base_fixtures_star(this: Context) {
 
 function no_from_override(this: Context) {
   this.options = {};
+}
+
+function relative_fixtures_from(this: Context) {
+  this.options = { from: "copy_to_workspace.fixtures" };
 }
 
 async function files_are_copied(this: Context) {
@@ -193,14 +284,30 @@ async function workspace_has_sibling_fixture(this: Context) {
   await expectFile(this.workspace, "copy_to_workspace.fixtures/hello.txt", "hello\n");
 }
 
-function empty_glob_error(this: Context, error: Error) {
-  expect(error.message).toContain("matched no files");
-  expect(error.message).toContain("missing/**/*.txt");
+async function workspace_has_hello_at_root(this: Context) {
+  await expectFile(this.workspace, "hello.txt", "hello\n");
 }
 
-function base_mismatch_error(this: Context, error: Error) {
+async function empty_glob_error(this: Context, error: Error) {
+  expect(error.message).toContain("matched no files");
+  expect(error.message).toContain("missing/**/*.txt");
+  await expectWorkspaceEmpty(this.workspace);
+}
+
+async function empty_globs_error(this: Context, error: Error) {
+  expect(error.message).toContain("globs must not be empty");
+  await expectWorkspaceEmpty(this.workspace);
+}
+
+async function base_mismatch_error(this: Context, error: Error) {
   expect(error.message).toContain("does not match base");
   expect(error.message).toContain("fixtures/*");
+  await expectWorkspaceEmpty(this.workspace);
+}
+
+async function colliding_destination_error(this: Context, error: Error) {
+  expect(error.message).toContain("maps to multiple files");
+  await expectWorkspaceEmpty(this.workspace);
 }
 
 async function writeRelative(root: string, relativePath: string, contents: string): Promise<void> {
@@ -212,4 +319,8 @@ async function writeRelative(root: string, relativePath: string, contents: strin
 async function expectFile(root: string, relativePath: string, contents: string): Promise<void> {
   const actual = await readFile(join(root, relativePath), "utf-8");
   expect(actual).toBe(contents);
+}
+
+async function expectWorkspaceEmpty(workspace: string): Promise<void> {
+  expect(await readdir(workspace)).toEqual([]);
 }

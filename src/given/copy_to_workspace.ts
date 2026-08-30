@@ -1,7 +1,6 @@
 import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
-
-import { expect } from "vitest";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export type CopyToWorkspaceOptions = {
   readonly from?: string;
@@ -13,10 +12,15 @@ export async function copy_to_workspace(
   globs: readonly string[],
   options?: CopyToWorkspaceOptions,
 ): Promise<void> {
-  const from = resolveSourceRoot(options);
+  if (globs.length === 0) {
+    throw new Error("copy_to_workspace: globs must not be empty");
+  }
+
+  const from = await resolveSourceRoot(options);
+  const resolvedWorkspace = resolve(workspace);
   const base = options?.base;
   const copies: Array<{ source: string; destination: string }> = [];
-  const destinations = new Set<string>();
+  const destinationSources = new Map<string, string>();
 
   for (const glob of globs) {
     const matches = await expandGlob(from, glob);
@@ -25,15 +29,30 @@ export async function copy_to_workspace(
     }
 
     for (const relativePath of matches) {
-      const destinationRelative = base === undefined ? relativePath : stripBase(relativePath, base);
-      if (destinations.has(destinationRelative)) {
-        continue;
+      const destinationRelative =
+        base === undefined ? relativePath : stripBase(relativePath, base);
+      assertSafeRelative(destinationRelative, "destination");
+
+      const source = resolve(from, relativePath);
+      const destination = resolve(resolvedWorkspace, destinationRelative);
+      if (!isInsideRoot(resolvedWorkspace, destination)) {
+        throw new Error(
+          `copy_to_workspace: destination escapes workspace: ${destinationRelative}`,
+        );
       }
-      destinations.add(destinationRelative);
-      copies.push({
-        source: join(from, relativePath),
-        destination: join(workspace, destinationRelative),
-      });
+
+      const existingSource = destinationSources.get(destinationRelative);
+      if (existingSource !== undefined) {
+        if (existingSource === source) {
+          continue;
+        }
+        throw new Error(
+          `copy_to_workspace: destination "${destinationRelative}" maps to multiple files`,
+        );
+      }
+
+      destinationSources.set(destinationRelative, source);
+      copies.push({ source, destination });
     }
   }
 
@@ -43,12 +62,22 @@ export async function copy_to_workspace(
   }
 }
 
-function resolveSourceRoot(options: CopyToWorkspaceOptions | undefined): string {
+async function resolveSourceRoot(options: CopyToWorkspaceOptions | undefined): Promise<string> {
   const from = options?.from;
-  if (from !== undefined) {
+  if (from !== undefined && isAbsolute(from)) {
     return resolve(from);
   }
 
+  const specDir = await currentSpecDirectory();
+  if (from === undefined) {
+    return specDir;
+  }
+
+  return resolve(specDir, from);
+}
+
+async function currentSpecDirectory(): Promise<string> {
+  const { expect } = await import("vitest");
   const testPath = expect.getState().testPath;
   if (testPath === undefined || testPath === "") {
     throw new Error(
@@ -56,22 +85,52 @@ function resolveSourceRoot(options: CopyToWorkspaceOptions | undefined): string 
     );
   }
 
-  return dirname(testPath);
+  const specFile = testPath.startsWith("file:") ? fileURLToPath(testPath) : testPath;
+  return dirname(specFile);
 }
 
 async function expandGlob(from: string, glob: string): Promise<string[]> {
-  const matcher = globToRegExp(glob);
-  const names = await readdir(from, { recursive: true });
+  const posixGlob = glob.replaceAll("\\", "/");
+  const matcher = globToRegExp(posixGlob);
+  const prefixSegments = globStaticPrefix(posixGlob);
+  const walkRoot = prefixSegments.length === 0 ? from : join(from, ...prefixSegments);
+  if (!isInsideRootOrEqual(from, walkRoot)) {
+    throw new Error(`copy_to_workspace: glob "${glob}" escapes source root`);
+  }
+
+  let walkInfo;
+  try {
+    walkInfo = await stat(walkRoot);
+  } catch (error: unknown) {
+    if (isEnoent(error)) {
+      return [];
+    }
+    throw error;
+  }
+
+  if (walkInfo.isFile()) {
+    const relativePath = toPosixRelative(from, walkRoot);
+    if (!matcher.test(relativePath)) {
+      return [];
+    }
+    return [relativePath];
+  }
+
+  if (!walkInfo.isDirectory()) {
+    return [];
+  }
+
+  const names = await readdir(walkRoot, { recursive: true });
   const matches: string[] = [];
 
   for (const name of names) {
-    const relativePath = name.split(sep).join("/");
-    const absolutePath = join(from, name);
+    const absolutePath = join(walkRoot, name);
     if (!isInsideRoot(from, absolutePath)) {
       throw new Error(`copy_to_workspace: matched path escapes source root: ${absolutePath}`);
     }
 
     const info = await stat(absolutePath);
+    const relativePath = toPosixRelative(from, absolutePath);
     if (!info.isFile() || !matcher.test(relativePath)) {
       continue;
     }
@@ -82,9 +141,38 @@ async function expandGlob(from: string, glob: string): Promise<string[]> {
   return matches;
 }
 
-function isInsideRoot(from: string, absolutePath: string): boolean {
-  const rel = relative(from, absolutePath);
+function globStaticPrefix(glob: string): string[] {
+  const segments: string[] = [];
+  for (const segment of glob.split("/")) {
+    if (segment === "" || segment.includes("*") || segment.includes("?")) {
+      break;
+    }
+    segments.push(segment);
+  }
+  return segments;
+}
+
+function toPosixRelative(from: string, absolutePath: string): string {
+  return relative(from, absolutePath).split(sep).join("/");
+}
+
+function isInsideRootOrEqual(root: string, absolutePath: string): boolean {
+  return resolve(root) === resolve(absolutePath) || isInsideRoot(root, absolutePath);
+}
+
+function isInsideRoot(root: string, absolutePath: string): boolean {
+  const rel = relative(resolve(root), resolve(absolutePath));
   return rel !== "" && !rel.startsWith(`..${sep}`) && rel !== ".." && !rel.startsWith("../");
+}
+
+function assertSafeRelative(relativePath: string, label: string): void {
+  const segments = relativePath.split("/");
+  if (
+    segments.length === 0 ||
+    segments.some((segment) => segment === "" || segment === "." || segment === "..")
+  ) {
+    throw new Error(`copy_to_workspace: ${label} is not a safe relative path: ${relativePath}`);
+  }
 }
 
 function stripBase(relativePath: string, base: string): string {
@@ -176,4 +264,8 @@ function globToRegExp(glob: string): RegExp {
 
 function escapeRegExp(char: string): string {
   return char.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isEnoent(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }

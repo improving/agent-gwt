@@ -174,13 +174,20 @@ async function question_is_answered(this: Context) {
 }
 ```
 
-To copy a fixture tree instead of writing files one by one, use `copy_to_workspace`. Globs are resolved from the **current Vitest spec file’s directory** (not `process.cwd()`). Override with `{ from: import.meta.dirname }` if the files live elsewhere.
+To copy a fixture tree instead of writing files one by one, use `copy_to_workspace`. Globs are resolved from the **current Vitest spec file’s directory** (not `process.cwd()`). A relative `from` is also resolved against that spec directory (absolute `from` is used as-is):
 
 ```ts
+import { join } from "node:path";
 import { copy_to_workspace } from "agent-gwt";
 
 async function tests_are_in_workspace(this: Context) {
   await copy_to_workspace(this.workspace, ["fixtures/**/*.spec.ts"]);
+}
+
+async function shared_fixtures_are_in_workspace(this: Context) {
+  await copy_to_workspace(this.workspace, ["**/*.spec.ts"], {
+    from: join(import.meta.dirname, "../shared-fixtures"),
+  });
 }
 ```
 
@@ -192,7 +199,7 @@ await copy_to_workspace(this.workspace, ["fixtures/**/*.spec.ts"], {
 });
 ```
 
-A glob that matches no files throws. If `base` is set and any matched file does not match that prefix, the helper throws and copies nothing.
+An empty `globs` array, a glob that matches no files, a `base` that does not match every file, or two sources mapping to the same destination all throw, and nothing is copied.
 
 ### Inspecting the result
 
