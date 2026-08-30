@@ -20,19 +20,22 @@ export async function buildDockerImage(
 ): Promise<void> {
   const dockerRunner = options.dockerRunner ?? runDocker;
   const { packageRoot } = options;
-  const memoKey = `${image}::${options.dockerfileRelative}::${packageRoot}`;
+  const force = options.force === true;
+  const buildArgs = options.buildArgs ?? {};
+  const memoKey = `${image}::${options.dockerfileRelative}::${packageRoot}::${force}::${JSON.stringify(buildArgs)}`;
 
   const existing = builtImages.get(memoKey);
   if (existing !== undefined) {
     return existing;
   }
 
-  const pending = doBuild(image, options.dockerfileRelative, dockerRunner, packageRoot).catch(
-    (error: unknown) => {
-      builtImages.delete(memoKey);
-      throw error;
-    },
-  );
+  const pending = doBuild(image, options.dockerfileRelative, dockerRunner, packageRoot, {
+    force,
+    buildArgs,
+  }).catch((error: unknown) => {
+    builtImages.delete(memoKey);
+    throw error;
+  });
 
   builtImages.set(memoKey, pending);
   return pending;
@@ -60,11 +63,14 @@ async function doBuild(
   dockerfileRelative: string,
   dockerRunner: DockerRunner,
   packageRoot: string,
+  options: { force: boolean; buildArgs: Record<string, string> },
 ): Promise<void> {
-  const inspect = await dockerRunner(["image", "inspect", image]);
-  if (inspect.exitCode === 0) {
-    process.stderr.write(`[agent-gwt] Docker image ${image} already present\n`);
-    return;
+  if (!options.force) {
+    const inspect = await dockerRunner(["image", "inspect", image]);
+    if (inspect.exitCode === 0) {
+      process.stderr.write(`[agent-gwt] Docker image ${image} already present\n`);
+      return;
+    }
   }
 
   const dockerfile = join(packageRoot, dockerfileRelative);
@@ -74,8 +80,13 @@ async function doBuild(
 
   process.stderr.write(`[agent-gwt] Building Docker image ${image}...\n`);
 
+  const buildArgs: string[] = [];
+  for (const [key, value] of Object.entries(options.buildArgs)) {
+    buildArgs.push("--build-arg", `${key}=${value}`);
+  }
+
   const build = await dockerRunner(
-    ["build", "--progress=plain", "-t", image, "-f", dockerfile, packageRoot],
+    ["build", "--progress=plain", "-t", image, ...buildArgs, "-f", dockerfile, packageRoot],
     { inheritOutput: true },
   );
 

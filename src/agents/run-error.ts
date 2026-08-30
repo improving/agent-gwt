@@ -21,8 +21,16 @@ export function agentRunError(options: AgentRunErrorOptions): Error {
       : `${options.agent} agent exited with code ${exitCode}: ${options.detail}`;
   const hint =
     stderr.includes("Unable to find image") || stderr.includes("not found")
-      ? `\nDocker image ${options.image} not found; build it with buildAgentImage("${options.name}") in vitest globalSetup.`
+      ? missingImageHint(options)
       : "";
 
   return new Error(`${headline}${hint}\nstderr:\n${stderr}\nstdout:\n${stdout}`);
+}
+
+function missingImageHint(options: AgentRunErrorOptions): string {
+  if (options.image.includes("/toolchain-")) {
+    return `\nDocker image ${options.image} not found; build it with buildToolchainImage(...) in vitest globalSetup.`;
+  }
+
+  return `\nDocker image ${options.image} not found; build it with buildAgentImage("${options.name}") in vitest globalSetup.`;
 }

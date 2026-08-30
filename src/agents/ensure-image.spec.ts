@@ -97,4 +97,5 @@ function build_was_not_called(this: Context) {
 function error_mentions_missing_image(this: Context) {
   expect(this.error?.message).toContain("agent-gwt/test:local");
   expect(this.error?.message).toContain("buildAgentImage");
+  expect(this.error?.message).toContain("buildToolchainImage");
 }
