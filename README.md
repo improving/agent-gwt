@@ -249,13 +249,10 @@ ARG AGENT_IMAGE=agent-gwt/cursor-cli:local
 FROM ${AGENT_IMAGE}
 # or default: agent-gwt/claude-code:local
 
-# Official Arch packages (as root)
-RUN pacman -Sy --noconfirm --needed nodejs npm python rust \
-  && pacman -Scc --noconfirm
-
-# AUR packages (build-time only — yay refuses root)
+# Prefer yay for everything (it wraps pacman) so official + AUR deps share one layer.
+# yay refuses root — switch to the aur user for the install.
 USER aur
-RUN yay -S --noconfirm --needed some-aur-package
+RUN yay -S --noconfirm --needed nodejs npm python rust some-aur-package
 USER root
 ```
 
