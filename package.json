@@ -51,6 +51,7 @@
   "scripts": {
     "build": "wireit",
     "test": "wireit",
+    "test:e2e": "wireit",
     "lint": "wireit",
     "test:coverage": "wireit",
     "prepublishOnly": "wireit"
@@ -81,6 +82,13 @@
       "files": [
         "src/**/*.ts",
         "vite.config.ts"
+      ]
+    },
+    "test:e2e": {
+      "command": "vitest run --config e2e/vitest.e2e.config.ts",
+      "files": [
+        "src/**/*.ts",
+        "e2e/**/*.ts"
       ]
     },
     "test:coverage": {

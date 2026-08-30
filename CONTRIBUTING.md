@@ -25,6 +25,10 @@ pnpm stage approve <stage-id>
 
 Bump size is controlled by PR labels (`major` > `minor` > patch default). See [Publishing](PUBLISHING.md) for trusted-publisher setup.
 
+## Testing
+
+`pnpm test` runs the unit suite with Docker mocked. `pnpm run test:e2e` runs `e2e/` against the real agent images. It needs Docker, and each agent's tests run only when that agent's credential is present on the host: Cursor needs `agent login` (`~/.config/cursor/auth.json`), Claude needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment. `globalSetup` builds the images for the agents that have credentials and the rest skip cleanly. On Apple Silicon export `DOCKER_DEFAULT_PLATFORM=linux/amd64` first.
+
 ## Architecture
 
 | Layer             | Role                                                                                   |
