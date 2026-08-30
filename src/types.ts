@@ -11,4 +11,5 @@ export type AgentContext = {
   agent: Agent;
   image: string;
   model?: string;
+  timeoutMs?: number;
 };

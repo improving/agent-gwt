@@ -4,8 +4,8 @@ import { CONTAINER_AUTH_PATH } from "./constants.js";
 
 export function buildDockerArgs(options: {
   workspace: string;
-  prompt: string;
   image: string;
+  containerName?: string;
   authFile: string;
   uid: number;
   gid: number;
@@ -17,13 +17,13 @@ export function buildDockerArgs(options: {
     agentArgs.push("--model", options.model);
   }
 
-  agentArgs.push("--", options.prompt);
-
   return buildDockerRunArgs({
     image: options.image,
     uid: options.uid,
     gid: options.gid,
     workdir: CONTAINER_WORKSPACE,
+    ...(options.containerName !== undefined ? { name: options.containerName } : {}),
+    interactive: true,
     env: { HOME: CONTAINER_HOME },
     volumes: [
       { host: options.workspace, container: CONTAINER_WORKSPACE },

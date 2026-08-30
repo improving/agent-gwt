@@ -6,6 +6,8 @@ export type RunAgentOptions = {
   model?: string;
   /** Override the agent's default image (e.g. a toolchain-extended tag). */
   image?: string;
+  /** Aborting it force-removes the container and rejects the run. */
+  signal?: AbortSignal;
 };
 
 export type AgentRunBindingsOptions = RunAgentOptions & {
@@ -21,6 +23,8 @@ export type Agent = {
 
 export type AgentOptions = {
   model?: string;
+  /** Cancel a run, and remove its container, after this many milliseconds. */
+  timeoutMs?: number;
   /**
    * Named toolchain registered via `buildToolchainImage(variant, ...)`.
    * Mutually exclusive with `image`.
@@ -45,6 +49,12 @@ export type DockerRunOptions = {
    * appearing on the host command line.
    */
   env?: Record<string, string>;
+  /** Written to the process's stdin, then closed. Pair with `interactive` on `docker run`. */
+  stdin?: string;
+  /** Aborting it kills the process, force-removes `containerName` when set, and rejects. */
+  signal?: AbortSignal;
+  /** The `--name` given to `docker run`, so an abort or a process exit can `docker rm -f` it. */
+  containerName?: string;
 };
 
 export type DockerRunner = (args: string[], options?: DockerRunOptions) => Promise<DockerRunResult>;
@@ -65,6 +75,10 @@ export type BuildDockerRunArgsOptions = {
   env?: Record<string, string>;
   /** `-e NAME` — value is read from the docker CLI's own environment, never on argv. */
   envPassthrough?: string[];
+  /** `--name`, so the container can be force-removed on cancellation. */
+  name?: string;
+  /** `-i`, keep stdin open so the prompt can be piped in. */
+  interactive?: boolean;
   volumes?: DockerVolumeMount[];
 };
 

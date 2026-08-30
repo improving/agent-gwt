@@ -19,6 +19,10 @@ export function agent(options: ConfigureAgentOptions) {
       this.model = options.model;
     }
 
+    if (options.timeoutMs !== undefined) {
+      this.timeoutMs = options.timeoutMs;
+    }
+
     await ensureDockerImage(this.image);
   };
 }

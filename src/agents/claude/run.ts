@@ -2,6 +2,7 @@ import { runDocker } from "../docker.js";
 import { parseAgentJsonOutput } from "../parse-result.js";
 import { agentRunError } from "../run-error.js";
 import type { AgentRunBindingsOptions, DockerRunner } from "../types.js";
+import { containerName } from "../_containerName.js";
 import { buildClaudeDockerArgs } from "./_buildDockerArgs.js";
 import { credentialsEnv } from "./_credentialsEnv.js";
 import { type ClaudeCredentials, resolveClaudeCredentials } from "./_resolveCredentials.js";
@@ -37,17 +38,23 @@ export async function runClaudeInDocker(
   const uid = options.uid ?? process.getuid?.() ?? 0;
   const gid = options.gid ?? process.getgid?.() ?? 0;
 
+  const name = containerName("claude");
   const args = buildClaudeDockerArgs({
     workspace: options.workspace,
-    prompt: options.prompt,
     image: options.image,
+    containerName: name,
     credentials,
     uid,
     gid,
     ...(options.model !== undefined ? { model: options.model } : {}),
   });
 
-  const result = await dockerRunner(args, { env: credentialsEnv(credentials) });
+  const result = await dockerRunner(args, {
+    env: credentialsEnv(credentials),
+    stdin: options.prompt,
+    containerName: name,
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
 
   if (result.exitCode !== 0) {
     throw agentRunError({

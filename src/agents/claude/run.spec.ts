@@ -14,6 +14,7 @@ type Context = {
   dockerRunner: DockerRunner;
   lastArgs: string[];
   lastRunOptions: DockerRunOptions | undefined;
+  signal: AbortSignal | undefined;
 };
 
 describe("runClaudeInDocker", () => {
@@ -42,6 +43,20 @@ describe("runClaudeInDocker", () => {
     },
     then: {
       docker_runner_received_api_key_env,
+    },
+  });
+
+  test("forwards an abort signal to the docker runner", {
+    given: {
+      successful_docker_runner,
+      oauth_token_credentials,
+      an_abort_signal,
+    },
+    when: {
+      running_claude_in_docker,
+    },
+    then: {
+      docker_runner_received_the_signal,
     },
   });
 
@@ -140,6 +155,7 @@ async function running_claude_in_docker(this: Context) {
       credentials: this.credentials,
       uid: 1000,
       gid: 1000,
+      ...(this.signal !== undefined ? { signal: this.signal } : {}),
     },
     this.dockerRunner,
   );
@@ -164,7 +180,12 @@ function docker_runner_received_api_key_env(this: Context) {
 
 function docker_runner_received_claude_args(this: Context) {
   expect(this.lastArgs).toContain("claude");
-  expect(this.lastArgs.at(-1)).toBe("hi");
+  expect(this.lastArgs).not.toContain("hi");
+  expect(this.lastRunOptions?.stdin).toBe("hi");
+  expect(this.lastRunOptions?.containerName).toMatch(/^agent-gwt-claude-[0-9a-f]{8}$/);
+  expect(this.lastArgs[this.lastArgs.indexOf("--name") + 1]).toBe(
+    this.lastRunOptions?.containerName,
+  );
 }
 
 function error_includes_exit_code(this: Context, error: Error) {
@@ -178,4 +199,12 @@ function error_includes_exit_code_and_claude_message(this: Context, error: Error
 function error_includes_claude_message(this: Context, error: Error) {
   expect(error.message).toContain("Invalid API key");
   expect(error.message).toContain("error_during_execution");
+}
+
+function an_abort_signal(this: Context) {
+  this.signal = new AbortController().signal;
+}
+
+function docker_runner_received_the_signal(this: Context) {
+  expect(this.lastRunOptions?.signal).toBe(this.signal);
 }

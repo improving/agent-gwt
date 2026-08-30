@@ -7,8 +7,8 @@ import { CLAUDE_CONTAINER_CREDENTIALS_PATH } from "./constants.js";
 
 export function buildClaudeDockerArgs(options: {
   workspace: string;
-  prompt: string;
   image: string;
+  containerName?: string;
   credentials: ClaudeCredentials;
   uid: number;
   gid: number;
@@ -19,8 +19,6 @@ export function buildClaudeDockerArgs(options: {
   if (options.model !== undefined && options.model !== "") {
     claudeArgs.push("--model", options.model);
   }
-
-  claudeArgs.push("--", options.prompt);
 
   const volumes: DockerVolumeMount[] = [
     { host: options.workspace, container: CONTAINER_WORKSPACE },
@@ -39,6 +37,8 @@ export function buildClaudeDockerArgs(options: {
     uid: options.uid,
     gid: options.gid,
     workdir: CONTAINER_WORKSPACE,
+    ...(options.containerName !== undefined ? { name: options.containerName } : {}),
+    interactive: true,
     env: { HOME: CONTAINER_HOME },
     // Names only; the values reach the container through the docker CLI's own environment.
     envPassthrough: Object.keys(credentialsEnv(options.credentials)),

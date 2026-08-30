@@ -21,7 +21,7 @@ const envFlagValues = (args: string[]) => args.filter((arg, i) => args[i - 1] ==
 const volumeMounts = (args: string[]) => args.filter((arg, i) => args[i - 1] === "-v");
 
 describe("buildClaudeDockerArgs", () => {
-  test("runs as host user with an OAuth token forwarded by name only", {
+  test("runs as host user, named, with stdin open and an OAuth token forwarded by name only", {
     given: {
       oauth_token_credentials,
     },
@@ -93,8 +93,8 @@ function credentials_file_credentials(this: Context) {
 function building_docker_args(this: Context) {
   this.args = buildClaudeDockerArgs({
     workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
     image: "agent-gwt/claude-code:local",
+    containerName: "agent-gwt-claude-test",
     credentials: this.credentials,
     uid: 1000,
     gid: 1000,
@@ -104,8 +104,8 @@ function building_docker_args(this: Context) {
 function building_docker_args_with_model(this: Context) {
   this.args = buildClaudeDockerArgs({
     workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
     image: "agent-gwt/claude-code:local",
+    containerName: "agent-gwt-claude-test",
     credentials: this.credentials,
     uid: 1000,
     gid: 1000,
@@ -174,13 +174,12 @@ function invokes_claude_headless_with_json_output(this: Context) {
   expect(this.args).toContain("--output-format");
   expect(this.args).toContain("json");
   expect(this.args).toContain("--dangerously-skip-permissions");
-  expect(this.args.at(-2)).toBe("--");
-  expect(this.args.at(-1)).toBe("Create a README");
+  expect(this.args).toContain("-i");
+  expect(this.args[this.args.indexOf("--name") + 1]).toBe("agent-gwt-claude-test");
 }
 
 function includes_model_flag(this: Context) {
   const modelIndex = this.args.indexOf("--model");
   expect(modelIndex).toBeGreaterThan(-1);
   expect(this.args[modelIndex + 1]).toBe("sonnet");
-  expect(this.args.indexOf("--")).toBeGreaterThan(modelIndex);
 }

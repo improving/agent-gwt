@@ -38,6 +38,16 @@ describe("buildDockerRunArgs", () => {
       passthrough_env_is_name_only,
     },
   });
+
+  test("names the container and keeps stdin open when asked", {
+    when: {
+      building_args_with_name_and_stdin,
+    },
+    then: {
+      names_the_container,
+      keeps_stdin_open,
+    },
+  });
 });
 
 function building_args(this: Context) {
@@ -111,4 +121,24 @@ function building_args_with_env_passthrough(this: Context) {
 function passthrough_env_is_name_only(this: Context) {
   const envValues = this.args.filter((arg, i) => this.args[i - 1] === "-e");
   expect(envValues).toEqual(["HOME=/home/agent", "SECRET_TOKEN"]);
+}
+
+function building_args_with_name_and_stdin(this: Context) {
+  this.args = buildDockerRunArgs({
+    image: "example:local",
+    uid: 1,
+    gid: 1,
+    workdir: "/workspace",
+    name: "agent-gwt-test-1234",
+    interactive: true,
+    command: ["true"],
+  });
+}
+
+function names_the_container(this: Context) {
+  expect(this.args[this.args.indexOf("--name") + 1]).toBe("agent-gwt-test-1234");
+}
+
+function keeps_stdin_open(this: Context) {
+  expect(this.args).toContain("-i");
 }

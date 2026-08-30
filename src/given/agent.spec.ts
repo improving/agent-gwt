@@ -88,6 +88,18 @@ describe("agent", () => {
     },
   });
 
+  test("puts timeoutMs on the context", {
+    given: {
+      stub_ensure_docker_image,
+    },
+    when: {
+      applying_agent: agent({ name: "cursor", timeoutMs: 1234 }),
+    },
+    then: {
+      timeout_is: timeout_is(1234),
+    },
+  });
+
   test("resolves the claude agent by name", {
     given: {
       stub_ensure_docker_image,
@@ -195,4 +207,10 @@ function error_mentions_unknown_variant(this: Context) {
 
 function error_mentions_mutual_exclusion(this: Context) {
   expect(this.error?.message).toContain("cannot set both image and variant");
+}
+
+function timeout_is(timeoutMs: number) {
+  return function (this: Context) {
+    expect(this.timeoutMs).toBe(timeoutMs);
+  };
 }

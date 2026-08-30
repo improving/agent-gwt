@@ -3,12 +3,14 @@ import test from "vitest-gwt";
 import { join } from "node:path";
 
 import { runCursorInDocker } from "./run.js";
-import type { DockerRunner } from "../types.js";
+import type { DockerRunOptions, DockerRunner } from "../types.js";
 
 type Context = {
   result: unknown;
   dockerRunner: DockerRunner;
   authFile: string;
+  lastArgs: string[];
+  lastRunOptions: DockerRunOptions | undefined;
 };
 
 describe("runCursorInDocker", () => {
@@ -22,6 +24,7 @@ describe("runCursorInDocker", () => {
     },
     then: {
       agent_result_is_parsed,
+      prompt_went_to_stdin_of_a_named_container,
     },
   });
 
@@ -40,11 +43,11 @@ describe("runCursorInDocker", () => {
 });
 
 function successful_docker_runner(this: Context) {
-  this.dockerRunner = async () => ({
-    exitCode: 0,
-    stdout: '{"ok":true}',
-    stderr: "",
-  });
+  this.dockerRunner = async (args, options) => {
+    this.lastArgs = args;
+    this.lastRunOptions = options;
+    return { exitCode: 0, stdout: '{"ok":true}', stderr: "" };
+  };
 }
 
 function failing_docker_runner(this: Context) {
@@ -79,4 +82,13 @@ function agent_result_is_parsed(this: Context) {
 
 function error_includes_exit_code(this: Context, error: Error) {
   expect(error.message).toContain("exited with code 1");
+}
+
+function prompt_went_to_stdin_of_a_named_container(this: Context) {
+  expect(this.lastArgs).not.toContain("hi");
+  expect(this.lastRunOptions?.stdin).toBe("hi");
+  expect(this.lastRunOptions?.containerName).toMatch(/^agent-gwt-cursor-[0-9a-f]{8}$/);
+  expect(this.lastArgs[this.lastArgs.indexOf("--name") + 1]).toBe(
+    this.lastRunOptions?.containerName,
+  );
 }

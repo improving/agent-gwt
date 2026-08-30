@@ -37,8 +37,8 @@ describe("buildDockerArgs", () => {
 function building_docker_args(this: Context) {
   this.args = buildDockerArgs({
     workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
     image: "agent-gwt/cursor-cli:local",
+    containerName: "agent-gwt-cursor-test",
     authFile: "/home/dev/.config/cursor/auth.json",
     uid: 1000,
     gid: 1000,
@@ -48,8 +48,8 @@ function building_docker_args(this: Context) {
 function building_docker_args_with_model(this: Context) {
   this.args = buildDockerArgs({
     workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
     image: "agent-gwt/cursor-cli:local",
+    containerName: "agent-gwt-cursor-test",
     authFile: "/home/dev/.config/cursor/auth.json",
     uid: 1000,
     gid: 1000,
@@ -89,12 +89,12 @@ function invokes_agent_with_json_output(this: Context) {
   expect(this.args).toContain("--output-format");
   expect(this.args).toContain("json");
   expect(this.args).toContain("--force");
-  expect(this.args.at(-1)).toBe("Create a README");
+  expect(this.args).toContain("-i");
+  expect(this.args[this.args.indexOf("--name") + 1]).toBe("agent-gwt-cursor-test");
 }
 
 function includes_model_flag(this: Context) {
   const modelIndex = this.args.indexOf("--model");
   expect(modelIndex).toBeGreaterThan(-1);
   expect(this.args[modelIndex + 1]).toBe("composer-2");
-  expect(this.args.indexOf("--")).toBeGreaterThan(modelIndex);
 }

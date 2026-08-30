@@ -290,15 +290,27 @@ Suite-level `withAspect` **before** hook that:
 2. Sets `this.model` when provided; sets `this.image` from `options.image`, a registered `options.variant`, or the resolved agent
 3. Asserts that Docker image already exists (`docker image inspect`) — it does **not** build. Build once in `globalSetup` with `buildAgentImage(...)` / `buildToolchainImage(...)` so parallel test files do not race
 
+`timeoutMs` (optional) cancels a run that takes longer, see [Cancellation](#cancellation-and-timeouts).
+
 Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)`.
 
 ## What `executing_the_agent` does
 
 1. Requires `this.workspace`, `this.prompt`, and `this.agent`
 2. Calls `this.agent.run(...)` with `this.image`:
-   - Cursor: `docker run` with credentials-only mount + `agent -p --force --output-format json [--model …] -- <prompt>`
-   - Claude: `docker run` with the workspace mount and credentials forwarded by env **name** (the value never appears on the host command line) or a read-only `.credentials.json` mount + `claude -p --output-format json --dangerously-skip-permissions [--model …] -- <prompt>`
+   - Cursor: `docker run` with credentials-only mount + `agent -p --force --output-format json [--model …]` with the prompt on stdin
+   - Claude: `docker run` with the workspace mount and credentials forwarded by env **name** (the value never appears on the host command line) or a read-only `.credentials.json` mount + `claude -p --output-format json --dangerously-skip-permissions [--model …]` with the prompt on stdin
 3. Sets `this.agentResult` to the parsed JSON
+
+## Cancellation and timeouts
+
+Every `docker run` gets a unique `--name`, and a run can be cancelled; cancelling force-removes the container so the agent stops working (and billing) at once. Three things cancel a run:
+
+- `agent({ timeoutMs })`: the run is cancelled after that many milliseconds and `executing_the_agent` throws `agent run exceeded <n> ms`.
+- The test finishing first, for example on Vitest's own timeout: the container is removed and no second error is reported.
+- The process exiting while a run is still tracked: a best-effort `docker rm -f` on the way out. The signal handlers assume Vitest's default `forks` pool; under `threads` only the exit hook applies.
+
+The prompt is sent to the container on stdin rather than as a command-line argument, so there is no size limit (Linux caps one argument at 128 KB) and the prompt never appears in `ps` output on the host.
 
 ## Exports
 

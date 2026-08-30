@@ -46,6 +46,18 @@ describe("executing_the_agent", () => {
     },
   });
 
+  test("cancels the run after timeoutMs and reports it", {
+    given: {
+      workspace_prompt_and_a_slow_agent_with_a_timeout,
+    },
+    when: {
+      executing_the_agent,
+    },
+    then: {
+      expect_error: error_reports_the_timeout,
+    },
+  });
+
   test("requires a prompt", {
     given: {
       workspace_and_agent_only,
@@ -125,6 +137,7 @@ function agent_was_called_with_workspace_and_prompt(this: Context) {
     workspace: "/tmp/.agents-gwt/ws-test",
     prompt: "Create a README",
     image: "agent-gwt/test:local",
+    signal: expect.any(AbortSignal),
   });
 }
 
@@ -134,6 +147,7 @@ function agent_was_called_with_model(this: Context) {
     prompt: "Create a README",
     image: "agent-gwt/test:local",
     model: "composer-2",
+    signal: expect.any(AbortSignal),
   });
 }
 
@@ -147,4 +161,24 @@ function error_requires_prompt(this: Context, error: Error) {
 
 function error_requires_agent(this: Context, error: Error) {
   expect(error.message).toContain("this.agent");
+}
+
+function workspace_prompt_and_a_slow_agent_with_a_timeout(this: Context) {
+  this.workspace = "/tmp/.agents-gwt/ws-test";
+  this.prompt = "Create a README";
+  this.image = "agent-gwt/test:local";
+  this.timeoutMs = 10;
+  this.agent = {
+    image: "agent-gwt/test:local",
+    ensureImage: async () => undefined,
+    buildImage: async () => undefined,
+    run: ({ signal }) =>
+      new Promise((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(signal.reason as Error));
+      }),
+  };
+}
+
+function error_reports_the_timeout(this: Context, error: Error) {
+  expect(error.message).toContain("exceeded 10 ms");
 }

@@ -6,6 +6,7 @@ import { runDocker } from "../docker.js";
 import { parseAgentJsonOutput } from "../parse-result.js";
 import { agentRunError } from "../run-error.js";
 import type { DockerRunner, AgentRunBindingsOptions } from "../types.js";
+import { containerName } from "../_containerName.js";
 import { buildDockerArgs } from "./_buildDockerArgs.js";
 import { defaultHostAuthFile } from "./constants.js";
 
@@ -31,17 +32,22 @@ export async function runCursorInDocker(
     );
   }
 
+  const name = containerName("cursor");
   const args = buildDockerArgs({
     workspace: options.workspace,
-    prompt: options.prompt,
     image: options.image,
+    containerName: name,
     authFile,
     uid,
     gid,
     ...(options.model !== undefined ? { model: options.model } : {}),
   });
 
-  const result = await dockerRunner(args);
+  const result = await dockerRunner(args, {
+    stdin: options.prompt,
+    containerName: name,
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
 
   if (result.exitCode !== 0) {
     throw agentRunError({ agent: "Cursor", name: "cursor", image: options.image, result });
