@@ -4,4 +4,3 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 .wireit/
-.codegraph/
