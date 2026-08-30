@@ -29,16 +29,13 @@ export async function copy_to_workspace(
     }
 
     for (const relativePath of matches) {
-      const destinationRelative =
-        base === undefined ? relativePath : stripBase(relativePath, base);
+      const destinationRelative = base === undefined ? relativePath : stripBase(relativePath, base);
       assertSafeRelative(destinationRelative, "destination");
 
       const source = resolve(from, relativePath);
       const destination = resolve(resolvedWorkspace, destinationRelative);
       if (!isInsideRoot(resolvedWorkspace, destination)) {
-        throw new Error(
-          `copy_to_workspace: destination escapes workspace: ${destinationRelative}`,
-        );
+        throw new Error(`copy_to_workspace: destination escapes workspace: ${destinationRelative}`);
       }
 
       const existingSource = destinationSources.get(destinationRelative);
