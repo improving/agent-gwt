@@ -1,6 +1,6 @@
 {
   "name": "agent-gwt",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "GWT step functions for repeatable agent tests",
   "keywords": [
     "agent",
