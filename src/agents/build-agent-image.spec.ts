@@ -11,7 +11,7 @@ import {
   resetBuiltImages,
 } from "./build-agent-image.js";
 import { BASE_DOCKERFILE_RELATIVE, BASE_IMAGE } from "./base/constants.js";
-import { agentRegistry } from "./registry.js";
+import { agentRegistry, type AgentName } from "./registry.js";
 import type { DockerRunOptions, DockerRunner } from "./types.js";
 
 type BuildContext = {
@@ -125,13 +125,25 @@ describe("buildBaseImage", () => {
 describe("buildAgentImage", () => {
   test("delegates to the resolved agent's buildImage", {
     given: {
-      stub_cursor_build_image,
+      stub_agent_build_image: stub_agent_build_image("cursor"),
     },
     when: {
-      building_cursor_image,
+      building_agent_image: building_agent_image("cursor"),
     },
     then: {
-      agent_build_was_called,
+      agent_build_was_called: agent_build_was_called("cursor"),
+    },
+  });
+
+  test("delegates to the claude agent's buildImage", {
+    given: {
+      stub_agent_build_image: stub_agent_build_image("claude"),
+    },
+    when: {
+      building_agent_image: building_agent_image("claude"),
+    },
+    then: {
+      agent_build_was_called: agent_build_was_called("claude"),
     },
   });
 });
@@ -273,18 +285,24 @@ function error_mentions_failed_build(this: BuildContext) {
   expect(this.error?.message).toContain("build boom");
 }
 
-function stub_cursor_build_image(this: AgentBuildContext) {
-  this.buildCalls = 0;
-  vi.spyOn(agentRegistry.cursor, "buildImage").mockImplementation(async () => {
-    this.buildCalls += 1;
-  });
+function stub_agent_build_image(name: AgentName) {
+  return function (this: AgentBuildContext) {
+    this.buildCalls = 0;
+    vi.spyOn(agentRegistry[name], "buildImage").mockImplementation(async () => {
+      this.buildCalls += 1;
+    });
+  };
 }
 
-async function building_cursor_image() {
-  await buildAgentImage("cursor");
+function building_agent_image(name: AgentName) {
+  return async () => {
+    await buildAgentImage(name);
+  };
 }
 
-function agent_build_was_called(this: AgentBuildContext) {
-  expect(this.buildCalls).toBe(1);
-  expect(agentRegistry.cursor.buildImage).toHaveBeenCalledWith();
+function agent_build_was_called(name: AgentName) {
+  return function (this: AgentBuildContext) {
+    expect(this.buildCalls).toBe(1);
+    expect(agentRegistry[name].buildImage).toHaveBeenCalledWith();
+  };
 }

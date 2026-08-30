@@ -13,9 +13,7 @@ export { executing_the_agent } from "./when/executing_the_agent.js";
 export { agent } from "./given/agent.js";
 
 export {
-  CONTAINER_HOME,
   CONTAINER_AUTH_PATH,
-  CONTAINER_WORKSPACE,
   CURSOR_DOCKERFILE_RELATIVE,
   CURSOR_IMAGE,
   defaultHostAuthFile,
@@ -24,6 +22,22 @@ export {
   cursorAgent,
   type RunCursorInDockerOptions,
 } from "./agents/cursor/index.js";
+
+export {
+  CLAUDE_API_KEY_ENV,
+  CLAUDE_CONTAINER_CREDENTIALS_PATH,
+  CLAUDE_DOCKERFILE_RELATIVE,
+  CLAUDE_IMAGE,
+  CLAUDE_OAUTH_TOKEN_ENV,
+  defaultClaudeHostCredentialsFile,
+  buildClaudeDockerArgs,
+  resolveClaudeCredentials,
+  runClaudeInDocker,
+  claudeAgent,
+  type ClaudeAgentResult,
+  type ClaudeCredentials,
+  type RunClaudeInDockerOptions,
+} from "./agents/claude/index.js";
 
 export { resolveAgent, agentRegistry } from "./agents/registry.js";
 export { createAgent, type CreateAgentBindings } from "./agents/create-agent.js";
@@ -34,7 +48,12 @@ export {
   resetBuiltImages,
   type BuildBaseImageOptions,
 } from "./agents/build-agent-image.js";
-export { BASE_IMAGE, BASE_DOCKERFILE_RELATIVE } from "./agents/base/index.js";
+export {
+  BASE_IMAGE,
+  BASE_DOCKERFILE_RELATIVE,
+  CONTAINER_HOME,
+  CONTAINER_WORKSPACE,
+} from "./agents/base/index.js";
 export { PACKAGE_ROOT } from "./package-root.js";
 export { ensureDockerImage } from "./agents/ensure-image.js";
 export { parseAgentJsonOutput } from "./agents/parse-result.js";

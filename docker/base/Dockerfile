@@ -1,9 +1,18 @@
-# Shared base for agent-gwt agent images (cursor, and future agents).
+# Shared base for agent-gwt agent images (cursor, claude, and future agents).
 # Extend with: FROM agent-gwt/base:local
 # AUR installs (build-time only): USER aur && yay -S --noconfirm ... && USER root
 FROM archlinux:latest
 
-RUN pacman -Sy --noconfirm --needed \
+# pacman 7 sandboxes its downloader: drops to the `alpm` user, then applies a
+# Landlock filesystem rule and a seccomp syscall denylist. Upstream already
+# disables the Landlock half (no Landlock in container kernels). The seccomp
+# half cannot load under Rosetta/QEMU user-mode emulation (every seccomp entry
+# point returns EINVAL, regardless of --privileged or seccomp=unconfined), which
+# breaks builds on Apple Silicon. Disabling only the syscall filter keeps the
+# user drop + NO_NEW_PRIVS and is a no-op difference on native x86_64 hosts.
+RUN sed -i 's/^#DisableSandboxSyscalls/DisableSandboxSyscalls/' /etc/pacman.conf \
+  && grep -q '^DisableSandboxSyscalls' /etc/pacman.conf \
+  && pacman -Sy --noconfirm --needed \
       base-devel git sudo curl ca-certificates \
   && useradd -m aur \
   && echo 'aur ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/aur \

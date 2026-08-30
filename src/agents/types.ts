@@ -34,6 +34,12 @@ export type DockerRunResult = {
 export type DockerRunOptions = {
   /** Forward docker stdout/stderr to the parent process while still capturing. */
   inheritOutput?: boolean;
+  /**
+   * Extra environment for the `docker` CLI process itself. Pair with
+   * `envPassthrough` to hand a secret to the container without it ever
+   * appearing on the host command line.
+   */
+  env?: Record<string, string>;
 };
 
 export type DockerRunner = (args: string[], options?: DockerRunOptions) => Promise<DockerRunResult>;
@@ -50,7 +56,10 @@ export type BuildDockerRunArgsOptions = {
   gid: number;
   workdir: string;
   command: string[];
+  /** `-e NAME=value` — value is visible on the host command line. */
   env?: Record<string, string>;
+  /** `-e NAME` — value is read from the docker CLI's own environment, never on argv. */
+  envPassthrough?: string[];
   volumes?: DockerVolumeMount[];
 };
 

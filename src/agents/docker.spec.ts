@@ -29,6 +29,15 @@ describe("buildDockerRunArgs", () => {
       rw_mount_has_no_mode_suffix,
     },
   });
+
+  test("forwards passthrough env by name only", {
+    when: {
+      building_args_with_env_passthrough,
+    },
+    then: {
+      passthrough_env_is_name_only,
+    },
+  });
 });
 
 function building_args(this: Context) {
@@ -85,4 +94,21 @@ function appends_command(this: Context) {
 function rw_mount_has_no_mode_suffix(this: Context) {
   expect(this.args).toContain("/tmp/ws:/workspace");
   expect(this.args.some((arg) => arg.includes("/tmp/ws:/workspace:"))).toBe(false);
+}
+
+function building_args_with_env_passthrough(this: Context) {
+  this.args = buildDockerRunArgs({
+    image: "example:local",
+    uid: 1,
+    gid: 1,
+    workdir: "/workspace",
+    env: { HOME: "/home/agent" },
+    envPassthrough: ["SECRET_TOKEN"],
+    command: ["true"],
+  });
+}
+
+function passthrough_env_is_name_only(this: Context) {
+  const envValues = this.args.filter((arg, i) => this.args[i - 1] === "-e");
+  expect(envValues).toEqual(["HOME=/home/agent", "SECRET_TOKEN"]);
 }

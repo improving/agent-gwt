@@ -2,15 +2,12 @@ import { access } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { homedir } from "node:os";
 
+import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "../base/constants.js";
 import { buildDockerRunArgs, runDocker } from "../docker.js";
 import { parseAgentJsonOutput } from "../parse-result.js";
+import { agentRunError } from "../run-error.js";
 import type { DockerRunner, AgentRunBindingsOptions } from "../types.js";
-import {
-  CONTAINER_AUTH_PATH,
-  CONTAINER_HOME,
-  CONTAINER_WORKSPACE,
-  defaultHostAuthFile,
-} from "./constants.js";
+import { CONTAINER_AUTH_PATH, defaultHostAuthFile } from "./constants.js";
 
 export type RunCursorInDockerOptions = AgentRunBindingsOptions & {
   authFile?: string;
@@ -75,17 +72,11 @@ export async function runCursorInDocker(
     ...(options.model !== undefined ? { model: options.model } : {}),
   });
 
-  const { exitCode, stdout, stderr } = await dockerRunner(args);
+  const result = await dockerRunner(args);
 
-  if (exitCode !== 0) {
-    const hint =
-      stderr.includes("Unable to find image") || stderr.includes("not found")
-        ? `\nBuild the image with: pnpm run docker:build`
-        : "";
-    throw new Error(
-      `Cursor agent exited with code ${exitCode}.${hint}\nstderr:\n${stderr}\nstdout:\n${stdout}`,
-    );
+  if (result.exitCode !== 0) {
+    throw agentRunError({ agent: "Cursor", name: "cursor", image: options.image, result });
   }
 
-  return parseAgentJsonOutput(stdout);
+  return parseAgentJsonOutput(result.stdout);
 }

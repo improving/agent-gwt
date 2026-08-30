@@ -14,6 +14,7 @@ export const runDocker: DockerRunner = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const child = spawn("docker", args, {
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...options.env },
     });
 
     let stdout = "";
@@ -52,6 +53,12 @@ export function buildDockerRunArgs(options: BuildDockerRunArgsOptions): string[]
   if (options.env !== undefined) {
     for (const [key, value] of Object.entries(options.env)) {
       args.push("-e", `${key}=${value}`);
+    }
+  }
+
+  if (options.envPassthrough !== undefined) {
+    for (const name of options.envPassthrough) {
+      args.push("-e", name);
     }
   }
 
