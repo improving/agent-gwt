@@ -8,6 +8,7 @@ export type {
 } from "./types.js";
 
 export { a_workspace, cleanup_workspace, AGENTS_GWT_TMP_ROOT } from "./given/a_workspace.js";
+export { copy_to_workspace, type CopyToWorkspaceOptions } from "./given/copy_to_workspace.js";
 export { the_prompt } from "./given/the_prompt.js";
 export { executing_the_agent } from "./when/executing_the_agent.js";
 export { agent } from "./given/agent.js";

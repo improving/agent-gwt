@@ -174,6 +174,26 @@ async function question_is_answered(this: Context) {
 }
 ```
 
+To copy a fixture tree instead of writing files one by one, use `copy_to_workspace`. Globs are resolved from the **current Vitest spec file’s directory** (not `process.cwd()`). Override with `{ from: import.meta.dirname }` if the files live elsewhere.
+
+```ts
+import { copy_to_workspace } from "agent-gwt";
+
+async function tests_are_in_workspace(this: Context) {
+  await copy_to_workspace(this.workspace, ["fixtures/**/*.spec.ts"]);
+}
+```
+
+Optional `base` strips a matching path prefix (`*` = one folder segment). `base: "fixtures/*"` turns `fixtures/suite-a/foo.spec.ts` into `foo.spec.ts` and `fixtures/suite-b/nested/bar.spec.ts` into `nested/bar.spec.ts`.
+
+```ts
+await copy_to_workspace(this.workspace, ["fixtures/**/*.spec.ts"], {
+  base: "fixtures/*",
+});
+```
+
+A glob that matches no files throws. If `base` is set and any matched file does not match that prefix, the helper throws and copies nothing.
+
 ### Inspecting the result
 
 `this.agentResult` is the parsed JSON the CLI printed, for either agent. For Claude Code, `ClaudeAgentResult` types the useful fields:
@@ -194,11 +214,11 @@ A Claude run whose JSON reports `is_error: true` throws from `executing_the_agen
 
 ## Docker images
 
-| Image | Role |
-| --- | --- |
-| `agent-gwt/base:local` | Shared Arch Linux base (`yay` + `aur` user). Used by all agents. |
-| `agent-gwt/cursor-cli:local` | Cursor CLI on top of the base |
-| `agent-gwt/claude-code:local` | Claude Code CLI (native binary) on top of the base |
+| Image                         | Role                                                             |
+| ----------------------------- | ---------------------------------------------------------------- |
+| `agent-gwt/base:local`        | Shared Arch Linux base (`yay` + `aur` user). Used by all agents. |
+| `agent-gwt/cursor-cli:local`  | Cursor CLI on top of the base                                    |
+| `agent-gwt/claude-code:local` | Claude Code CLI (native binary) on top of the base               |
 
 `buildAgentImage("cursor")` builds the base first, then the Cursor image; `buildAgentImage("claude")` does the same for Claude Code.
 
@@ -270,19 +290,20 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 
 ## Exports
 
-| Export | Role |
-| --- | --- |
-| `AgentContext` | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …) |
-| `agent(opts)` | `withAspect` before — `{ name: "cursor" \| "claude", model?, image? }` |
-| `buildAgentImage(name)` | Suite setup — builds base + agent image (use in vitest `globalSetup`) |
-| `buildBaseImage()` | Builds `agent-gwt/base:local` only |
-| `buildDockerImage(...)` | Builds an arbitrary Dockerfile (e.g. toolchain overlay) |
-| `a_workspace` | Creates `/tmp/.agents-gwt/ws-*` (use in `withAspect` before, or in `given`) |
-| `cleanup_workspace` | Remove the temp workspace (use in `withAspect` after) |
-| `the_prompt(text)` | Curried `given` — sets `this.prompt` |
-| `executing_the_agent` | `when` — runs `this.agent.run(...)` |
-| `ClaudeAgentResult` | Type for Claude Code's JSON result (`is_error`, `result`, `num_turns`, `total_cost_usd`, …) |
-| `ClaudeCredentials` / `resolveClaudeCredentials()` | Credential source for the Claude container (token, API key, or file) |
+| Export                                             | Role                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `AgentContext`                                     | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)                        |
+| `agent(opts)`                                      | `withAspect` before — `{ name: "cursor" \| "claude", model?, image? }`                      |
+| `buildAgentImage(name)`                            | Suite setup — builds base + agent image (use in vitest `globalSetup`)                       |
+| `buildBaseImage()`                                 | Builds `agent-gwt/base:local` only                                                          |
+| `buildDockerImage(...)`                            | Builds an arbitrary Dockerfile (e.g. toolchain overlay)                                     |
+| `a_workspace`                                      | Creates `/tmp/.agents-gwt/ws-*` (use in `withAspect` before, or in `given`)                 |
+| `copy_to_workspace(workspace, globs, options?)`    | Copy glob-matched files into `workspace` from the current spec directory (`from`, `base`)   |
+| `cleanup_workspace`                                | Remove the temp workspace (use in `withAspect` after)                                       |
+| `the_prompt(text)`                                 | Curried `given` — sets `this.prompt`                                                        |
+| `executing_the_agent`                              | `when` — runs `this.agent.run(...)`                                                         |
+| `ClaudeAgentResult`                                | Type for Claude Code's JSON result (`is_error`, `result`, `num_turns`, `total_cost_usd`, …) |
+| `ClaudeCredentials` / `resolveClaudeCredentials()` | Credential source for the Claude container (token, API key, or file)                        |
 
 ## Isolation notes
 
