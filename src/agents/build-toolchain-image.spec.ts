@@ -175,6 +175,21 @@ describe("buildToolchainImage", () => {
       variant_resolved_from_disk,
     },
   });
+
+  test("keeps distinct registry entries for variants that sanitize to the same name", {
+    given: {
+      variant_name,
+      package_with_dockerfile,
+      stub_agent_build,
+      inspect_parent_then_force_build,
+    },
+    when: {
+      building_colliding_sanitized_variant_names,
+    },
+    then: {
+      colliding_variants_resolve_independently,
+    },
+  });
 });
 
 afterEach(() => {
@@ -182,7 +197,11 @@ afterEach(() => {
 });
 
 function reset_toolchain_state(this: Context) {
+  const priorRoots = this.tempRoots ?? [];
   resetToolchainImages();
+  for (const root of priorRoots) {
+    resetToolchainImages({ packageRoot: root });
+  }
   resetBuiltImages();
   this.tempRoots = [];
   this.inspectCalls = 0;
@@ -198,15 +217,14 @@ function reset_toolchain_state(this: Context) {
 }
 
 async function cleanup_temp_roots(this: Context) {
-  const roots = [...this.tempRoots];
+  const roots = [...(this.tempRoots ?? [])];
   resetToolchainImages();
   for (const root of roots) {
     resetToolchainImages({ packageRoot: root });
   }
   resetBuiltImages();
-  await Promise.all(
-    this.tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
-  );
+  await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })));
+  this.tempRoots = [];
 }
 
 function variant_name(this: Context) {
@@ -382,6 +400,20 @@ async function building_then_clearing_memory_and_resolving(this: Context) {
   });
 }
 
+async function building_colliding_sanitized_variant_names(this: Context) {
+  this.variant = "node/18";
+  await building_toolchain.call(this);
+  this.firstImage = resolveToolchainImage("cursor", "node/18", {
+    packageRoot: this.packageRoot,
+  });
+
+  this.variant = "node_18";
+  await building_toolchain.call(this);
+  this.secondImage = resolveToolchainImage("cursor", "node_18", {
+    packageRoot: this.packageRoot,
+  });
+}
+
 function agent_image_was_built(this: Context) {
   expect(this.agentBuildCalls).toBe(1);
   expect(buildAgentImageModule.buildAgentImage).toHaveBeenCalledWith("cursor");
@@ -459,6 +491,19 @@ function tags_differ_by_repo_digest(this: Context) {
 function variant_resolved_from_disk(this: Context) {
   expect(this.firstImage).toBeDefined();
   expect(this.secondImage).toBe(this.firstImage);
+}
+
+function colliding_variants_resolve_independently(this: Context) {
+  expect(this.firstImage).toBeDefined();
+  expect(this.secondImage).toBeDefined();
+  // Same Dockerfile + parent → same image tag, but both keys must still resolve (no lost update).
+  expect(this.firstImage).toBe(this.secondImage);
+  expect(resolveToolchainImage("cursor", "node/18", { packageRoot: this.packageRoot })).toBe(
+    this.firstImage,
+  );
+  expect(resolveToolchainImage("cursor", "node_18", { packageRoot: this.packageRoot })).toBe(
+    this.secondImage,
+  );
 }
 
 function error_mentions_missing_dockerfile(this: Context) {

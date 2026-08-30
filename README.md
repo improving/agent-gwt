@@ -281,7 +281,7 @@ agent({ name: "cursor", variant: "node18", model: "auto" });
 Caveats:
 
 - Vitest watch does not re-run `globalSetup` — restart after Dockerfile or parent-image changes, or the variant still points at the previous tag until you rebuild.
-- Prefer `FROM ${AGENT_IMAGE}` (or a literal `FROM` matching the agent) so `agent: "claude"` cannot silently wrap a Cursor base.
+- Prefer `FROM ${AGENT_IMAGE}` (or a literal `FROM` matching the agent) so `agent: "claude"` cannot silently wrap a Cursor base. Validation checks the **first** `FROM` only (single-stage Dockerfiles).
 
 The base uses Arch/`pacman` (glibc). Alpine will not run the Cursor CLI.
 

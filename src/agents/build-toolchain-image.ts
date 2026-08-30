@@ -128,6 +128,7 @@ function registerToolchainImage(
 }
 
 function assertDockerfileUsesAgentImage(contents: string, agentImage: string): void {
+  // Single-stage only: first FROM must be the agent (multi-stage final-FROM layouts are out of scope).
   const fromLine = contents
     .split("\n")
     .map((line) => line.trim())
@@ -178,8 +179,8 @@ function registryDir(packageRoot: string): string {
 }
 
 function registryEntryPath(packageRoot: string, agent: AgentName, variant: string): string {
-  const safeVariant = variant.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return join(registryDir(packageRoot), `${agent}--${safeVariant}`);
+  // Hash the raw key so distinct variants never collide on disk (e.g. node/18 vs node_18).
+  return join(registryDir(packageRoot), digest(registryKey(agent, variant)));
 }
 
 function digest(value: string | Buffer): string {

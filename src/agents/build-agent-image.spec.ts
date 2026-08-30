@@ -102,6 +102,38 @@ describe("buildDockerImage", () => {
       error_mentions_failed_build,
     },
   });
+
+  test("force rebuilds even when the image already exists", {
+    given: {
+      reset_memo,
+      image_name,
+      package_with_dockerfile,
+      inspect_succeeds_but_force_still_builds,
+    },
+    when: {
+      building_image_with_force,
+    },
+    then: {
+      build_was_called,
+      build_uses_plain_progress_and_streams_output,
+    },
+  });
+
+  test("passes build args through to docker build", {
+    given: {
+      reset_memo,
+      image_name,
+      package_with_dockerfile,
+      inspect_fails_then_build_succeeds,
+    },
+    when: {
+      building_image_with_build_args,
+    },
+    then: {
+      build_was_called,
+      build_includes_build_args,
+    },
+  });
 });
 
 describe("buildBaseImage", () => {
@@ -238,11 +270,47 @@ function inspect_fails_then_build_fails(this: BuildContext) {
   };
 }
 
+function inspect_succeeds_but_force_still_builds(this: BuildContext) {
+  this.dockerRunner = async (args, options) => {
+    if (args[0] === "image" && args[1] === "inspect") {
+      this.inspectCalls += 1;
+      return { exitCode: 0, stdout: "[]", stderr: "" };
+    }
+    if (args[0] === "build") {
+      this.buildCalls += 1;
+      this.lastBuildArgs = args;
+      if (options !== undefined) {
+        this.lastBuildOptions = options;
+      }
+      return { exitCode: 0, stdout: "done", stderr: "" };
+    }
+    throw new Error(`unexpected docker args: ${args.join(" ")}`);
+  };
+}
+
 async function building_image(this: BuildContext) {
   await buildDockerImage(this.image, {
     dockerfileRelative: this.dockerfileRelative,
     packageRoot: this.packageRoot,
     dockerRunner: this.dockerRunner,
+  });
+}
+
+async function building_image_with_force(this: BuildContext) {
+  await buildDockerImage(this.image, {
+    dockerfileRelative: this.dockerfileRelative,
+    packageRoot: this.packageRoot,
+    dockerRunner: this.dockerRunner,
+    force: true,
+  });
+}
+
+async function building_image_with_build_args(this: BuildContext) {
+  await buildDockerImage(this.image, {
+    dockerfileRelative: this.dockerfileRelative,
+    packageRoot: this.packageRoot,
+    dockerRunner: this.dockerRunner,
+    buildArgs: { AGENT_IMAGE: "agent-gwt/cursor-cli:local" },
   });
 }
 
@@ -278,6 +346,20 @@ function build_was_not_called(this: BuildContext) {
 function build_uses_plain_progress_and_streams_output(this: BuildContext) {
   expect(this.lastBuildArgs).toContain("--progress=plain");
   expect(this.lastBuildOptions).toEqual({ inheritOutput: true });
+}
+
+function build_includes_build_args(this: BuildContext) {
+  expect(this.lastBuildArgs).toEqual([
+    "build",
+    "--progress=plain",
+    "-t",
+    this.image,
+    "--build-arg",
+    "AGENT_IMAGE=agent-gwt/cursor-cli:local",
+    "-f",
+    join(this.packageRoot, this.dockerfileRelative),
+    this.packageRoot,
+  ]);
 }
 
 function error_mentions_failed_build(this: BuildContext) {
