@@ -1,42 +1,25 @@
-import { afterEach, describe, expect, vi } from "vitest";
-import test from "vitest-gwt";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { describe, expect, vi } from "vitest";
+import test, { withAspect } from "vitest-gwt";
 
-import * as buildAgentImageModule from "../agents/build-agent-image.js";
-import { resetBuiltImages } from "../agents/build-agent-image.js";
-import {
-  buildToolchainImage,
-  resetToolchainImages,
-} from "../agents/build-toolchain-image.js";
+import * as toolchainModule from "../agents/build-toolchain-image.js";
 import * as ensureImageModule from "../agents/ensure-image.js";
 import { agentRegistry, type AgentName } from "../agents/registry.js";
 import { CLAUDE_IMAGE } from "../agents/claude/constants.js";
 import { CURSOR_IMAGE } from "../agents/cursor/constants.js";
-import type { DockerRunner } from "../agents/types.js";
 import { agent } from "./agent.js";
 import type { AgentContext } from "../types.js";
 
 type Context = AgentContext & {
   ensureCalls: number;
-  ensuredImage?: string;
-  error?: Error;
-  packageRoot: string;
+  ensuredImage: string | undefined;
+  error: Error | undefined;
   variant: string;
   toolchainImage: string;
 };
 
-const tempRoots: string[] = [];
-
-afterEach(async () => {
-  resetToolchainImages();
-  resetBuiltImages();
-  vi.restoreAllMocks();
-  await Promise.all(tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
-});
-
 describe("agent", () => {
+  withAspect(reset_agent_test_state, undefined);
+
   test("sets agent, model, and image from the resolved agent", {
     given: {
       stub_ensure_docker_image,
@@ -121,6 +104,13 @@ describe("agent", () => {
   });
 });
 
+function reset_agent_test_state(this: Context) {
+  vi.restoreAllMocks();
+  this.ensureCalls = 0;
+  this.ensuredImage = undefined;
+  this.error = undefined;
+}
+
 function stub_ensure_docker_image(this: Context) {
   this.ensureCalls = 0;
   vi.spyOn(ensureImageModule, "ensureDockerImage").mockImplementation(async (image) => {
@@ -129,32 +119,14 @@ function stub_ensure_docker_image(this: Context) {
   });
 }
 
-async function registered_toolchain_variant(this: Context) {
-  this.variant = "agent-spec-node18";
-  this.packageRoot = await mkdtemp(join(tmpdir(), "agent-gwt-agent-tc-"));
-  tempRoots.push(this.packageRoot);
-  const dockerfileRelative = join("docker", "agent.Dockerfile");
-  await mkdir(join(this.packageRoot, "docker"), { recursive: true });
-  await writeFile(
-    join(this.packageRoot, dockerfileRelative),
-    "FROM agent-gwt/cursor-cli:local\n",
-  );
-
-  const dockerRunner: DockerRunner = async (args) => {
-    if (args[0] === "image" && args[1] === "inspect") {
-      this.toolchainImage = args[2] ?? "";
-      return { exitCode: 0, stdout: "[]", stderr: "" };
+function registered_toolchain_variant(this: Context) {
+  this.variant = "node18";
+  this.toolchainImage = "agent-gwt/toolchain-cursor-abcd1234ef00:fedcba987654";
+  vi.spyOn(toolchainModule, "resolveToolchainImage").mockImplementation((agentName, variant) => {
+    if (agentName === "cursor" && variant === this.variant) {
+      return this.toolchainImage;
     }
-    throw new Error(`unexpected docker args: ${args.join(" ")}`);
-  };
-
-  vi.spyOn(buildAgentImageModule, "buildAgentImage").mockResolvedValue();
-
-  await buildToolchainImage(this.variant, {
-    agent: "cursor",
-    dockerfileRelative,
-    packageRoot: this.packageRoot,
-    dockerRunner,
+    return undefined;
   });
 }
 

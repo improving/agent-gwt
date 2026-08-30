@@ -28,6 +28,15 @@ describe("agentRunError", () => {
     },
   });
 
+  test("hints buildToolchainImage when a toolchain tag is missing", {
+    when: {
+      building_error_for_missing_toolchain_image,
+    },
+    then: {
+      message_has_toolchain_build_hint,
+    },
+  });
+
   test("puts the agent-reported detail in the headline", {
     when: {
       building_error_with_detail,
@@ -60,6 +69,19 @@ function building_error_for_missing_image(this: Context) {
   });
 }
 
+function building_error_for_missing_toolchain_image(this: Context) {
+  this.error = agentRunError({
+    agent: "Cursor",
+    name: "cursor",
+    image: "agent-gwt/toolchain-cursor-abcd1234ef00:fedcba987654",
+    result: {
+      exitCode: 125,
+      stdout: "",
+      stderr: "Unable to find image 'agent-gwt/toolchain-cursor-abcd1234ef00:fedcba987654' locally",
+    },
+  });
+}
+
 function building_error_with_detail(this: Context) {
   this.error = agentRunError({
     agent: "Claude",
@@ -86,6 +108,12 @@ function message_has_no_build_hint(this: Context) {
 function message_has_build_hint(this: Context) {
   expect(this.error.message).toContain('buildAgentImage("claude")');
   expect(this.error.message).toContain("agent-gwt/claude-code:local");
+}
+
+function message_has_toolchain_build_hint(this: Context) {
+  expect(this.error.message).toContain("buildToolchainImage");
+  expect(this.error.message).toContain("agent-gwt/toolchain-cursor-abcd1234ef00:fedcba987654");
+  expect(this.error.message.includes("buildAgentImage")).toBe(false);
 }
 
 function message_has_detail_headline(this: Context) {

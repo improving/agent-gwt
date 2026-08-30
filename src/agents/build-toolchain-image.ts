@@ -1,72 +1,85 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve, dirname } from "node:path";
+import { join, resolve } from "node:path";
 
 import { buildAgentImage, buildDockerImage } from "./build-agent-image.js";
+import { runDocker } from "./docker.js";
 import type { AgentName } from "./registry.js";
+import { resolveAgent } from "./registry.js";
 import type { DockerRunner } from "./types.js";
 
 const DIGEST_LENGTH = 12;
+const AGENT_IMAGE_BUILD_ARG = "AGENT_IMAGE";
 
 const toolchainImages = new Map<string, string>();
 
 export type BuildToolchainImageOptions = {
   agent: AgentName;
   dockerfileRelative: string;
-  /** Defaults to `process.cwd()` (consuming repo). */
+  /**
+   * Repo root that owns the Dockerfile. Defaults to `process.cwd()`.
+   * Must match the cwd used when resolving variants via `agent({ variant })`
+   * (registry paths are keyed by this digest).
+   */
   packageRoot?: string;
   dockerRunner?: DockerRunner;
 };
 
-export function resetToolchainImages(): void {
-  const file = registryFilePath();
-  const persisted = readRegistryFile();
-  for (const key of toolchainImages.keys()) {
-    delete persisted[key];
-  }
+export type ResolveToolchainImageOptions = {
+  /** Defaults to `process.cwd()` — must match the `packageRoot` used at build time. */
+  packageRoot?: string;
+};
+
+export function resetToolchainImages(options: ResolveToolchainImageOptions = {}): void {
   toolchainImages.clear();
-
-  if (Object.keys(persisted).length === 0) {
-    if (existsSync(file)) {
-      rmSync(file, { force: true });
-    }
-    return;
+  const dir = registryDir(options.packageRoot ?? process.cwd());
+  if (existsSync(dir)) {
+    rmSync(dir, { recursive: true, force: true });
   }
-
-  writeRegistryFile(persisted);
 }
 
-/** Clears the in-process cache without deleting the persisted registry file. */
+/** Clears the in-process cache without deleting persisted registry files. */
 export function clearToolchainImageMemory(): void {
   toolchainImages.clear();
 }
 
 /**
  * Resolve a variant registered by `buildToolchainImage`.
- * Checks in-process memory first, then the cwd-scoped registry file
+ * Checks in-process memory first, then the packageRoot-scoped registry file
  * (so vitest `globalSetup` registrations are visible to test workers).
  */
-export function resolveToolchainImage(agent: AgentName, variant: string): string | undefined {
+export function resolveToolchainImage(
+  agent: AgentName,
+  variant: string,
+  options: ResolveToolchainImageOptions = {},
+): string | undefined {
+  const packageRoot = resolve(options.packageRoot ?? process.cwd());
   const key = registryKey(agent, variant);
-  const cached = toolchainImages.get(key);
+  const cacheKey = `${digest(packageRoot)}::${key}`;
+  const cached = toolchainImages.get(cacheKey);
   if (cached !== undefined) {
     return cached;
   }
 
-  const persisted = readRegistryFile();
-  const image = persisted[key];
-  if (image === undefined) {
+  const file = registryEntryPath(packageRoot, agent, variant);
+  if (!existsSync(file)) {
     return undefined;
   }
 
-  toolchainImages.set(key, image);
+  const image = readFileSync(file, "utf8").trim();
+  if (image.length === 0) {
+    return undefined;
+  }
+
+  toolchainImages.set(cacheKey, image);
   return image;
 }
 
@@ -76,64 +89,104 @@ export async function buildToolchainImage(
 ): Promise<void> {
   const packageRoot = resolve(options.packageRoot ?? process.cwd());
   const dockerfile = join(packageRoot, options.dockerfileRelative);
+  const dockerRunner = options.dockerRunner ?? runDocker;
+  const agentImage = resolveAgent(options.agent).image;
 
   if (!existsSync(dockerfile)) {
     throw new Error(`Dockerfile not found at ${dockerfile}`);
   }
 
+  const dockerfileContents = readFileSync(dockerfile, "utf8");
+  assertDockerfileUsesAgentImage(dockerfileContents, agentImage);
+
   await buildAgentImage(options.agent);
 
-  const contentDigest = digest(readFileSync(dockerfile));
+  const parentId = await inspectImageId(agentImage, dockerRunner);
   const repoDigest = digest(packageRoot);
+  const contentDigest = digest(`${dockerfileContents}\n${parentId}`);
   const image = `agent-gwt/toolchain-${options.agent}-${repoDigest}:${contentDigest}`;
 
   await buildDockerImage(image, {
     dockerfileRelative: options.dockerfileRelative,
     packageRoot,
+    force: true,
+    buildArgs: { [AGENT_IMAGE_BUILD_ARG]: agentImage },
     ...(options.dockerRunner !== undefined ? { dockerRunner: options.dockerRunner } : {}),
   });
 
-  registerToolchainImage(options.agent, variant, image);
+  registerToolchainImage(packageRoot, options.agent, variant, image);
 }
 
-function registerToolchainImage(agent: AgentName, variant: string, image: string): void {
+function registerToolchainImage(
+  packageRoot: string,
+  agent: AgentName,
+  variant: string,
+  image: string,
+): void {
   const key = registryKey(agent, variant);
-  toolchainImages.set(key, image);
+  const cacheKey = `${digest(packageRoot)}::${key}`;
+  toolchainImages.set(cacheKey, image);
 
-  const persisted = readRegistryFile();
-  persisted[key] = image;
-  writeRegistryFile(persisted);
+  const file = registryEntryPath(packageRoot, agent, variant);
+  mkdirSync(registryDir(packageRoot), { recursive: true });
+  const temp = `${file}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+  writeFileSync(temp, `${image}\n`);
+  renameSync(temp, file);
+}
+
+function assertDockerfileUsesAgentImage(contents: string, agentImage: string): void {
+  const fromLine = contents
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => /^FROM\s+/i.test(line));
+
+  if (fromLine === undefined) {
+    throw new Error(
+      `Dockerfile must start FROM ${agentImage} or FROM \${${AGENT_IMAGE_BUILD_ARG}}`,
+    );
+  }
+
+  const usesBuildArg =
+    fromLine.includes(`\${${AGENT_IMAGE_BUILD_ARG}}`) ||
+    fromLine.includes(`$${AGENT_IMAGE_BUILD_ARG}`);
+  const usesLiteral = fromLine.includes(agentImage);
+
+  if (!usesBuildArg && !usesLiteral) {
+    throw new Error(
+      `Dockerfile FROM must resolve to ${agentImage} ` +
+        `(use FROM ${agentImage} or ARG ${AGENT_IMAGE_BUILD_ARG} / FROM \${${AGENT_IMAGE_BUILD_ARG}}). ` +
+        `Got: ${fromLine}`,
+    );
+  }
+}
+
+async function inspectImageId(image: string, dockerRunner: DockerRunner): Promise<string> {
+  const inspect = await dockerRunner(["image", "inspect", "--format", "{{.Id}}", image]);
+  if (inspect.exitCode !== 0) {
+    throw new Error(
+      `Docker image ${image} not found after buildAgentImage. stderr:\n${inspect.stderr}`,
+    );
+  }
+
+  const id = inspect.stdout.trim();
+  if (id.length === 0) {
+    throw new Error(`Docker image inspect returned an empty Id for ${image}`);
+  }
+
+  return id;
 }
 
 function registryKey(agent: AgentName, variant: string): string {
   return `${agent}::${variant}`;
 }
 
-function registryFilePath(): string {
-  return join(tmpdir(), ".agent-gwt", "toolchains", digest(resolve(process.cwd())), "variants.json");
+function registryDir(packageRoot: string): string {
+  return join(tmpdir(), ".agents-gwt", "toolchains", digest(resolve(packageRoot)));
 }
 
-function readRegistryFile(): Record<string, string> {
-  const file = registryFilePath();
-  if (!existsSync(file)) {
-    return {};
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    return parsed as Record<string, string>;
-  } catch {
-    return {};
-  }
-}
-
-function writeRegistryFile(entries: Record<string, string>): void {
-  const file = registryFilePath();
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(entries, null, 2)}\n`);
+function registryEntryPath(packageRoot: string, agent: AgentName, variant: string): string {
+  const safeVariant = variant.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return join(registryDir(packageRoot), `${agent}--${safeVariant}`);
 }
 
 function digest(value: string | Buffer): string {

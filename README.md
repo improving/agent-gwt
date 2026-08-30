@@ -245,8 +245,9 @@ Install packages in a child image that derives from the agent image, register a 
 
 ```dockerfile
 # docker/agent.Dockerfile
-FROM agent-gwt/cursor-cli:local
-# or: FROM agent-gwt/claude-code:local
+ARG AGENT_IMAGE=agent-gwt/cursor-cli:local
+FROM ${AGENT_IMAGE}
+# or default: agent-gwt/claude-code:local
 
 # Official Arch packages (as root)
 RUN pacman -Sy --noconfirm --needed nodejs npm python rust \
@@ -275,7 +276,12 @@ agent({ name: "cursor", variant: "node18", model: "auto" });
 // omit variant → stock agent-gwt/cursor-cli:local
 ```
 
-`buildToolchainImage` builds the agent image first, tags a per-repo content-hashed image (`agent-gwt/toolchain-<agent>-<repoDigest>:<contentDigest>`), and registers the variant for the current working directory (in-memory and on disk under `/tmp/.agent-gwt/…`, so vitest `globalSetup` is visible to test workers). Changing the Dockerfile produces a new tag so Docker rebuilds; unchanged files reuse the cached image. `image` remains available as a low-level override and is mutually exclusive with `variant`.
+`buildToolchainImage` builds the agent image first, passes `--build-arg AGENT_IMAGE=…`, tags a per-repo image (`agent-gwt/toolchain-<agent>-<repoDigest>:<digest>`), and registers the variant under `/tmp/.agents-gwt/toolchains/<packageRootDigest>/` (one file per variant, so parallel registration is safe). The digest covers **Dockerfile bytes + parent image ID**; `docker build` is always run (daemon cache applies) so `COPY`/`ADD` context changes are picked up on the next `buildToolchainImage` call. `packageRoot` defaults to `process.cwd()` and must match the cwd used when resolving `agent({ variant })`. `image` remains a low-level override and is mutually exclusive with `variant`.
+
+Caveats:
+
+- Vitest watch does not re-run `globalSetup` — restart after Dockerfile or parent-image changes, or the variant still points at the previous tag until you rebuild.
+- Prefer `FROM ${AGENT_IMAGE}` (or a literal `FROM` matching the agent) so `agent: "claude"` cannot silently wrap a Cursor base.
 
 The base uses Arch/`pacman` (glibc). Alpine will not run the Cursor CLI.
 

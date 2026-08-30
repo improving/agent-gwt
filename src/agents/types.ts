@@ -76,4 +76,8 @@ export type BuildDockerImageOptions = {
   dockerfileRelative: string;
   packageRoot: string;
   dockerRunner?: DockerRunner;
+  /** When true, always run `docker build` even if the tag already exists. */
+  force?: boolean;
+  /** Extra `--build-arg KEY=VALUE` pairs passed to `docker build`. */
+  buildArgs?: Record<string, string>;
 };

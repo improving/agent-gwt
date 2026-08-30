@@ -12,6 +12,6 @@ export async function ensureDockerImage(
   }
 
   throw new Error(
-    `Docker image ${image} not found. Call buildAgentImage(...) from vitest globalSetup (or build the image manually) before running agent tests.`,
+    `Docker image ${image} not found. Call buildAgentImage(...) or buildToolchainImage(...) from vitest globalSetup (or build the image manually) before running agent tests.`,
   );
 }
