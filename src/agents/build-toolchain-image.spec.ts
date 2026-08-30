@@ -198,9 +198,15 @@ function reset_toolchain_state(this: Context) {
 }
 
 async function cleanup_temp_roots(this: Context) {
+  const roots = [...this.tempRoots];
   resetToolchainImages();
+  for (const root of roots) {
+    resetToolchainImages({ packageRoot: root });
+  }
   resetBuiltImages();
-  await Promise.all(this.tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    this.tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 }
 
 function variant_name(this: Context) {
