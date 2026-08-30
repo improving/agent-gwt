@@ -6,7 +6,12 @@ export {
   CLAUDE_OAUTH_TOKEN_ENV,
   defaultClaudeHostCredentialsFile,
 } from "./constants.js";
-export { buildClaudeDockerArgs } from "./_buildDockerArgs.js";
-export { resolveClaudeCredentials, type ClaudeCredentials } from "./_resolveCredentials.js";
-export { runClaudeInDocker, type ClaudeAgentResult, type RunClaudeInDockerOptions } from "./run.js";
+export {
+  buildClaudeDockerArgs,
+  resolveClaudeCredentials,
+  runClaudeInDocker,
+  type ClaudeAgentResult,
+  type ClaudeCredentials,
+  type RunClaudeInDockerOptions,
+} from "./run.js";
 export { claudeAgent } from "./agent.js";

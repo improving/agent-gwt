@@ -1,10 +1,28 @@
-import { runDocker } from "../docker.js";
+import { access } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { homedir } from "node:os";
+
+import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "../base/constants.js";
+import { buildDockerRunArgs, runDocker } from "../docker.js";
 import { parseAgentJsonOutput } from "../parse-result.js";
 import { agentRunError } from "../run-error.js";
-import type { AgentRunBindingsOptions, DockerRunner } from "../types.js";
-import { buildClaudeDockerArgs } from "./_buildDockerArgs.js";
-import { credentialsEnv } from "./_credentialsEnv.js";
-import { type ClaudeCredentials, resolveClaudeCredentials } from "./_resolveCredentials.js";
+import type { AgentRunBindingsOptions, DockerRunner, DockerVolumeMount } from "../types.js";
+import {
+  CLAUDE_API_KEY_ENV,
+  CLAUDE_CONTAINER_CREDENTIALS_PATH,
+  CLAUDE_OAUTH_TOKEN_ENV,
+  defaultClaudeHostCredentialsFile,
+} from "./constants.js";
+
+/**
+ * How Claude Code authenticates inside the container. Env-backed kinds are forwarded
+ * to `docker run` by name (never on argv); the file kind is bind-mounted read-only.
+ * See `constants.ts` for which host setups produce each.
+ */
+export type ClaudeCredentials =
+  | { kind: "oauth-token"; token: string }
+  | { kind: "api-key"; apiKey: string }
+  | { kind: "credentials-file"; file: string };
 
 export type RunClaudeInDockerOptions = AgentRunBindingsOptions & {
   /** Defaults to `resolveClaudeCredentials()`. */
@@ -28,6 +46,78 @@ export type ClaudeAgentResult = {
   permission_denials?: unknown[];
   usage?: Record<string, unknown>;
 };
+
+/** Env OAuth token, then env API key, then a readable host credentials file. */
+export async function resolveClaudeCredentials(
+  options: { env?: NodeJS.ProcessEnv; home?: string } = {},
+): Promise<ClaudeCredentials> {
+  const env = options.env ?? process.env;
+  const home = options.home ?? homedir();
+
+  const token = env[CLAUDE_OAUTH_TOKEN_ENV];
+  if (token !== undefined && token !== "") {
+    return { kind: "oauth-token", token };
+  }
+
+  const apiKey = env[CLAUDE_API_KEY_ENV];
+  if (apiKey !== undefined && apiKey !== "") {
+    return { kind: "api-key", apiKey };
+  }
+
+  const file = defaultClaudeHostCredentialsFile(home);
+  try {
+    await access(file, fsConstants.R_OK);
+  } catch {
+    throw new Error(
+      `Claude Code credentials not found. Set ${CLAUDE_OAUTH_TOKEN_ENV} (run \`claude setup-token\` on the host) ` +
+        `or ${CLAUDE_API_KEY_ENV}, or provide ${file} (Linux hosts; macOS keeps credentials in the Keychain).`,
+    );
+  }
+
+  return { kind: "credentials-file", file };
+}
+
+export function buildClaudeDockerArgs(options: {
+  workspace: string;
+  prompt: string;
+  image: string;
+  credentials: ClaudeCredentials;
+  uid: number;
+  gid: number;
+  model?: string;
+}): string[] {
+  const claudeArgs = ["claude", "-p", "--output-format", "json", "--dangerously-skip-permissions"];
+
+  if (options.model !== undefined && options.model !== "") {
+    claudeArgs.push("--model", options.model);
+  }
+
+  claudeArgs.push("--", options.prompt);
+
+  const volumes: DockerVolumeMount[] = [
+    { host: options.workspace, container: CONTAINER_WORKSPACE },
+  ];
+
+  if (options.credentials.kind === "credentials-file") {
+    volumes.push({
+      host: options.credentials.file,
+      container: CLAUDE_CONTAINER_CREDENTIALS_PATH,
+      mode: "ro",
+    });
+  }
+
+  return buildDockerRunArgs({
+    image: options.image,
+    uid: options.uid,
+    gid: options.gid,
+    workdir: CONTAINER_WORKSPACE,
+    env: { HOME: CONTAINER_HOME },
+    // Names only; the values reach the container through the docker CLI's own environment.
+    envPassthrough: Object.keys(credentialsEnv(options.credentials)),
+    volumes,
+    command: claudeArgs,
+  });
+}
 
 export async function runClaudeInDocker(
   options: RunClaudeInDockerOptions,
@@ -66,6 +156,18 @@ export async function runClaudeInDocker(
   }
 
   return parsed;
+}
+
+/** Secret values for the docker CLI process, keyed by the env names `buildClaudeDockerArgs` forwards. */
+function credentialsEnv(credentials: ClaudeCredentials): Record<string, string> {
+  switch (credentials.kind) {
+    case "oauth-token":
+      return { [CLAUDE_OAUTH_TOKEN_ENV]: credentials.token };
+    case "api-key":
+      return { [CLAUDE_API_KEY_ENV]: credentials.apiKey };
+    case "credentials-file":
+      return {};
+  }
 }
 
 function isErrorResult(value: unknown): value is ClaudeAgentResult {
