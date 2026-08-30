@@ -50,6 +50,12 @@ export {
   type BuildBaseImageOptions,
 } from "./agents/build-agent-image.js";
 export {
+  buildToolchainImage,
+  resetToolchainImages,
+  resolveToolchainImage,
+  type BuildToolchainImageOptions,
+} from "./agents/build-toolchain-image.js";
+export {
   BASE_IMAGE,
   BASE_DOCKERFILE_RELATIVE,
   CONTAINER_HOME,

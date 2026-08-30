@@ -1,20 +1,39 @@
 import { afterEach, describe, expect, vi } from "vitest";
 import test from "vitest-gwt";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
+import * as buildAgentImageModule from "../agents/build-agent-image.js";
+import { resetBuiltImages } from "../agents/build-agent-image.js";
+import {
+  buildToolchainImage,
+  resetToolchainImages,
+} from "../agents/build-toolchain-image.js";
 import * as ensureImageModule from "../agents/ensure-image.js";
 import { agentRegistry, type AgentName } from "../agents/registry.js";
 import { CLAUDE_IMAGE } from "../agents/claude/constants.js";
 import { CURSOR_IMAGE } from "../agents/cursor/constants.js";
+import type { DockerRunner } from "../agents/types.js";
 import { agent } from "./agent.js";
 import type { AgentContext } from "../types.js";
 
 type Context = AgentContext & {
   ensureCalls: number;
   ensuredImage?: string;
+  error?: Error;
+  packageRoot: string;
+  variant: string;
+  toolchainImage: string;
 };
 
-afterEach(() => {
+const tempRoots: string[] = [];
+
+afterEach(async () => {
+  resetToolchainImages();
+  resetBuiltImages();
   vi.restoreAllMocks();
+  await Promise.all(tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
 describe("agent", () => {
@@ -47,6 +66,45 @@ describe("agent", () => {
     },
   });
 
+  test("resolves a registered toolchain variant", {
+    given: {
+      stub_ensure_docker_image,
+      registered_toolchain_variant,
+    },
+    when: {
+      applying_agent_with_variant,
+    },
+    then: {
+      agent_is: agent_is("cursor"),
+      image_is_toolchain_variant,
+      ensure_was_called_with_toolchain,
+    },
+  });
+
+  test("throws when the toolchain variant is unknown", {
+    given: {
+      stub_ensure_docker_image,
+    },
+    when: {
+      applying_agent_with_unknown_variant,
+    },
+    then: {
+      error_mentions_unknown_variant,
+    },
+  });
+
+  test("throws when both image and variant are set", {
+    given: {
+      stub_ensure_docker_image,
+    },
+    when: {
+      applying_agent_with_image_and_variant,
+    },
+    then: {
+      error_mentions_mutual_exclusion,
+    },
+  });
+
   test("resolves the claude agent by name", {
     given: {
       stub_ensure_docker_image,
@@ -71,6 +129,59 @@ function stub_ensure_docker_image(this: Context) {
   });
 }
 
+async function registered_toolchain_variant(this: Context) {
+  this.variant = "agent-spec-node18";
+  this.packageRoot = await mkdtemp(join(tmpdir(), "agent-gwt-agent-tc-"));
+  tempRoots.push(this.packageRoot);
+  const dockerfileRelative = join("docker", "agent.Dockerfile");
+  await mkdir(join(this.packageRoot, "docker"), { recursive: true });
+  await writeFile(
+    join(this.packageRoot, dockerfileRelative),
+    "FROM agent-gwt/cursor-cli:local\n",
+  );
+
+  const dockerRunner: DockerRunner = async (args) => {
+    if (args[0] === "image" && args[1] === "inspect") {
+      this.toolchainImage = args[2] ?? "";
+      return { exitCode: 0, stdout: "[]", stderr: "" };
+    }
+    throw new Error(`unexpected docker args: ${args.join(" ")}`);
+  };
+
+  vi.spyOn(buildAgentImageModule, "buildAgentImage").mockResolvedValue();
+
+  await buildToolchainImage(this.variant, {
+    agent: "cursor",
+    dockerfileRelative,
+    packageRoot: this.packageRoot,
+    dockerRunner,
+  });
+}
+
+async function applying_agent_with_variant(this: Context) {
+  await agent({ name: "cursor", variant: this.variant, model: "auto" }).call(this);
+}
+
+async function applying_agent_with_unknown_variant(this: Context) {
+  try {
+    await agent({ name: "cursor", variant: "missing" }).call(this);
+  } catch (error) {
+    this.error = error as Error;
+  }
+}
+
+async function applying_agent_with_image_and_variant(this: Context) {
+  try {
+    await agent({
+      name: "cursor",
+      image: "my-app/agent:local",
+      variant: "node18",
+    }).call(this);
+  } catch (error) {
+    this.error = error as Error;
+  }
+}
+
 function agent_is(name: AgentName) {
   return function (this: Context) {
     expect(this.agent).toBe(agentRegistry[name]);
@@ -89,9 +200,27 @@ function image_is(image: string) {
   };
 }
 
+function image_is_toolchain_variant(this: Context) {
+  expect(this.image).toBe(this.toolchainImage);
+}
+
 function ensure_was_called_with(image: string) {
   return function (this: Context) {
     expect(this.ensureCalls).toBe(1);
     expect(this.ensuredImage).toBe(image);
   };
+}
+
+function ensure_was_called_with_toolchain(this: Context) {
+  expect(this.ensureCalls).toBe(1);
+  expect(this.ensuredImage).toBe(this.toolchainImage);
+}
+
+function error_mentions_unknown_variant(this: Context) {
+  expect(this.error?.message).toContain('Unknown toolchain variant "missing"');
+  expect(this.error?.message).toContain("buildToolchainImage");
+}
+
+function error_mentions_mutual_exclusion(this: Context) {
+  expect(this.error?.message).toContain("cannot set both image and variant");
 }

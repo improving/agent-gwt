@@ -241,7 +241,7 @@ Docker Desktop applies this to both `docker build` and `docker run`, so nothing 
 
 ### Extending with toolchains
 
-Install packages in a child image, then point tests at that tag:
+Install packages in a child image that derives from the agent image, register a named **variant** in `globalSetup`, then select it from `agent()`:
 
 ```dockerfile
 # docker/agent.Dockerfile
@@ -260,20 +260,22 @@ USER root
 
 ```ts
 // vitest.global-setup.ts
-import { buildAgentImage, buildDockerImage } from "agent-gwt";
+import { buildToolchainImage } from "agent-gwt";
 
 export default async function setup() {
-  await buildAgentImage("cursor");
-  await buildDockerImage("my-app/agent:local", {
+  await buildToolchainImage("node18", {
+    agent: "cursor",
     dockerfileRelative: "docker/agent.Dockerfile",
-    packageRoot: process.cwd(),
   });
 }
 ```
 
 ```ts
-agent({ name: "cursor", image: "my-app/agent:local", model: "auto" });
+agent({ name: "cursor", variant: "node18", model: "auto" });
+// omit variant → stock agent-gwt/cursor-cli:local
 ```
+
+`buildToolchainImage` builds the agent image first, tags a per-repo content-hashed image (`agent-gwt/toolchain-<agent>-<repoDigest>:<contentDigest>`), and registers the variant for the current working directory (in-memory and on disk under `/tmp/.agent-gwt/…`, so vitest `globalSetup` is visible to test workers). Changing the Dockerfile produces a new tag so Docker rebuilds; unchanged files reuse the cached image. `image` remains available as a low-level override and is mutually exclusive with `variant`.
 
 The base uses Arch/`pacman` (glibc). Alpine will not run the Cursor CLI.
 
@@ -282,8 +284,8 @@ The base uses Arch/`pacman` (glibc). Alpine will not run the Cursor CLI.
 Suite-level `withAspect` **before** hook that:
 
 1. Resolves `name` via the agents registry and sets `this.agent`
-2. Sets `this.model` when provided; sets `this.image` from `options.image` or the resolved agent
-3. Asserts that Docker image already exists (`docker image inspect`) — it does **not** build. Build once in `globalSetup` with `buildAgentImage(...)` so parallel test files do not race
+2. Sets `this.model` when provided; sets `this.image` from `options.image`, a registered `options.variant`, or the resolved agent
+3. Asserts that Docker image already exists (`docker image inspect`) — it does **not** build. Build once in `globalSetup` with `buildAgentImage(...)` / `buildToolchainImage(...)` so parallel test files do not race
 
 Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)`.
 
@@ -300,10 +302,11 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 | Export                                             | Role                                                                                        |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `AgentContext`                                     | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)                        |
-| `agent(opts)`                                      | `withAspect` before — `{ name: "cursor" \| "claude", model?, image? }`                      |
+| `agent(opts)`                                      | `withAspect` before — `{ name: "cursor" \| "claude", model?, variant?, image? }`            |
 | `buildAgentImage(name)`                            | Suite setup — builds base + agent image (use in vitest `globalSetup`)                       |
+| `buildToolchainImage(variant, opts)`               | Suite setup — builds a per-repo toolchain layer and registers `variant` for `agent()`       |
 | `buildBaseImage()`                                 | Builds `agent-gwt/base:local` only                                                          |
-| `buildDockerImage(...)`                            | Builds an arbitrary Dockerfile (e.g. toolchain overlay)                                     |
+| `buildDockerImage(...)`                            | Builds an arbitrary Dockerfile (low-level; prefer `buildToolchainImage` for toolchains)     |
 | `a_workspace`                                      | Creates `/tmp/.agents-gwt/ws-*` (use in `withAspect` before, or in `given`)                 |
 | `copy_to_workspace(workspace, globs, options?)`    | Copy glob-matched files into `workspace` from the current spec directory (`from`, `base`)   |
 | `cleanup_workspace`                                | Remove the temp workspace (use in `withAspect` after)                                       |

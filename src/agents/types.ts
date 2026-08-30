@@ -21,6 +21,11 @@ export type Agent = {
 
 export type AgentOptions = {
   model?: string;
+  /**
+   * Named toolchain registered via `buildToolchainImage(variant, ...)`.
+   * Mutually exclusive with `image`.
+   */
+  variant?: string;
   /** Docker image tag to ensure and run (defaults to the resolved agent's image). */
   image?: string;
 };
