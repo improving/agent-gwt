@@ -10,5 +10,9 @@
     "test:coverage": "pnpm -r run test:coverage",
     "test:e2e": "pnpm --filter agent-gwt run test:e2e"
   },
+  "devDependencies": {
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
   "packageManager": "pnpm@11.22.0"
 }
