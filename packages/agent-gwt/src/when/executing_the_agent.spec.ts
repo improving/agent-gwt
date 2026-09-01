@@ -72,7 +72,16 @@ describe("executing_the_agent", () => {
 });
 
 function stubAgent(this: Context): void {
-  this.runMock = vi.fn(async () => ({ type: "result", result: "done" }));
+  this.runMock = vi.fn(async () => ({
+    durationMs: 10,
+    costUsd: null,
+    usage: {
+      inputTokens: null,
+      outputTokens: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+    },
+  }));
   this.agent = {
     image: "clanker-cleanroom/cursor",
     ensureImage: async () => undefined,
@@ -117,7 +126,16 @@ function workspace_and_prompt_without_agent(this: Context) {
 }
 
 function agent_result_is_set(this: Context) {
-  expect(this.agentResult).toEqual({ type: "result", result: "done" });
+  expect(this.agentResult).toEqual({
+    durationMs: 10,
+    costUsd: null,
+    usage: {
+      inputTokens: null,
+      outputTokens: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+    },
+  });
 }
 
 function agent_was_called_with_workspace_and_prompt(this: Context) {

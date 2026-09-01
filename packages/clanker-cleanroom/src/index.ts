@@ -1,8 +1,10 @@
 export type {
   Agent,
+  AgentBinding,
   AgentOptions,
-  AgentResult,
+  AgentPrepareResult,
   AgentRunBindingsOptions,
+  AgentRunResult,
   BuildDockerRunArgsOptions,
   DockerRunOptions,
   DockerRunResult,
@@ -10,7 +12,10 @@ export type {
   DockerVolumeMount,
   EnsureDockerImageOptions,
   RunAgentOptions,
+  TokenUsage,
 } from "./agents/types.js";
+
+export { emptyTokenUsage, readTokenCount } from "./agents/types.js";
 
 export {
   buildDockerRunArgs,
@@ -22,16 +27,15 @@ export { ensureDockerImage } from "./agents/ensure-image.js";
 export { parseAgentJsonOutput } from "./agents/parse-result.js";
 export { createAgent, type CreateAgentBindings } from "./agents/create-agent.js";
 export { resolveAgent, agentRegistry, type AgentName } from "./agents/registry.js";
+export { runBoundAgent, type RunBoundAgentOptions } from "./agents/run-bound.js";
 export { run, type RunOptions } from "./agents/run.js";
 
 export {
   CONTAINER_AUTH_PATH,
   CURSOR_IMAGE,
   defaultHostAuthFile,
-  buildDockerArgs,
-  runCursorInDocker,
   cursorAgent,
-  type RunCursorInDockerOptions,
+  cursorBinding,
 } from "./agents/cursor/index.js";
 
 export {
@@ -40,13 +44,11 @@ export {
   CLAUDE_IMAGE,
   CLAUDE_OAUTH_TOKEN_ENV,
   defaultClaudeHostCredentialsFile,
-  buildClaudeDockerArgs,
   resolveClaudeCredentials,
-  runClaudeInDocker,
+  credentialsEnv,
   claudeAgent,
-  type ClaudeAgentResult,
+  claudeBinding,
   type ClaudeCredentials,
-  type RunClaudeInDockerOptions,
 } from "./agents/claude/index.js";
 
 export { BASE_IMAGE, CONTAINER_HOME, CONTAINER_WORKSPACE } from "./agents/base/index.js";

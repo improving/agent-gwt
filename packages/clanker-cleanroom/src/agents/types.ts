@@ -1,4 +1,16 @@
-export type AgentResult = unknown;
+export type TokenUsage = {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+};
+
+/** Normalized metrics from an agent run. Dialog/transcript is not included. */
+export type AgentRunResult = {
+  durationMs: number | null;
+  costUsd: number | null;
+  usage: TokenUsage;
+};
 
 export type RunAgentOptions = {
   workspace: string;
@@ -16,7 +28,7 @@ export type Agent = {
   image: string;
   ensureImage: () => Promise<void>;
   buildImage: () => Promise<void>;
-  run: (options: RunAgentOptions) => Promise<AgentResult>;
+  run: (options: RunAgentOptions) => Promise<AgentRunResult>;
 };
 
 export type AgentOptions = {
@@ -71,3 +83,36 @@ export type BuildDockerRunArgsOptions = {
 export type EnsureDockerImageOptions = {
   dockerRunner?: DockerRunner;
 };
+
+export type AgentPrepareResult = {
+  volumes?: DockerVolumeMount[];
+  /** Values for the docker CLI process (never on argv). */
+  env?: Record<string, string>;
+};
+
+export type AgentBinding = {
+  image: string;
+  displayName: string;
+  command: (opts: { prompt: string; model?: string }) => string[];
+  /**
+   * Resolve host-side secrets into mounts + docker-CLI env.
+   * Workspace → CONTAINER_WORKSPACE is always added by the shared runner.
+   */
+  prepare: (opts: { workspace: string }) => Promise<AgentPrepareResult>;
+  /** Map stdout → normalized metrics (throw on agent-reported failure). */
+  parseResult: (stdout: string) => AgentRunResult;
+  describeFailure?: (stdout: string) => string | undefined;
+};
+
+export function emptyTokenUsage(): TokenUsage {
+  return {
+    inputTokens: null,
+    outputTokens: null,
+    cacheReadTokens: null,
+    cacheWriteTokens: null,
+  };
+}
+
+export function readTokenCount(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}

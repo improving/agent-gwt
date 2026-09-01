@@ -47,3 +47,15 @@ export async function resolveClaudeCredentials(
 
   return { kind: "credentials-file", file };
 }
+
+/** Secret values for the docker CLI process, keyed by env names forwarded via envPassthrough. */
+export function credentialsEnv(credentials: ClaudeCredentials): Record<string, string> {
+  switch (credentials.kind) {
+    case "oauth-token":
+      return { [CLAUDE_OAUTH_TOKEN_ENV]: credentials.token };
+    case "api-key":
+      return { [CLAUDE_API_KEY_ENV]: credentials.apiKey };
+    case "credentials-file":
+      return {};
+  }
+}

@@ -1,25 +1,23 @@
 import { buildImages } from "../images/build.js";
 import { ensureDockerImage } from "./ensure-image.js";
-import type { Agent, AgentResult, AgentRunBindingsOptions, RunAgentOptions } from "./types.js";
+import { runBoundAgent } from "./run-bound.js";
+import type { Agent, AgentBinding, RunAgentOptions } from "./types.js";
 
-export type CreateAgentBindings = {
-  image: string;
-  run: (options: AgentRunBindingsOptions) => Promise<AgentResult>;
-};
+export type CreateAgentBindings = AgentBinding;
 
-export function createAgent(bindings: CreateAgentBindings): Agent {
+export function createAgent(binding: AgentBinding): Agent {
   return {
-    image: bindings.image,
+    image: binding.image,
     ensureImage: async () => {
-      await ensureDockerImage(bindings.image);
+      await ensureDockerImage(binding.image);
     },
     buildImage: async () => {
       await buildImages();
     },
     run: (options: RunAgentOptions) =>
-      bindings.run({
+      runBoundAgent(binding, {
         ...options,
-        image: options.image ?? bindings.image,
+        image: options.image ?? binding.image,
       }),
   };
 }

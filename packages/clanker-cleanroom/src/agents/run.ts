@@ -1,10 +1,11 @@
 import { resolveImage } from "../images/registry.js";
 import { ensureDockerImage } from "./ensure-image.js";
+import { claudeBinding } from "./claude/binding.js";
 import { CLAUDE_IMAGE } from "./claude/constants.js";
-import { runClaudeInDocker } from "./claude/run.js";
+import { cursorBinding } from "./cursor/binding.js";
 import { CURSOR_IMAGE } from "./cursor/constants.js";
-import { runCursorInDocker } from "./cursor/run.js";
-import type { AgentResult, DockerRunner } from "./types.js";
+import { runBoundAgent } from "./run-bound.js";
+import type { AgentBinding, AgentRunResult, DockerRunner } from "./types.js";
 
 export type RunOptions = {
   workspace: string;
@@ -24,7 +25,7 @@ export type RunOptions = {
 export async function run(
   tagOrOptions: string | ({ image: string } & RunOptions),
   options?: RunOptions,
-): Promise<AgentResult> {
+): Promise<AgentRunResult> {
   if (typeof tagOrOptions === "string") {
     if (options === undefined) {
       throw new Error("run(tag, options) requires options with workspace and prompt");
@@ -36,27 +37,34 @@ export async function run(
   return runImage(tagOrOptions.image, tagOrOptions);
 }
 
-async function runImage(image: string, options: RunOptions): Promise<AgentResult> {
+async function runImage(image: string, options: RunOptions): Promise<AgentRunResult> {
   const ensureOptions =
     options.dockerRunner === undefined ? {} : { dockerRunner: options.dockerRunner };
   await ensureDockerImage(image, ensureOptions);
 
-  const agent = options.agent ?? inferAgent(image);
-  const runOpts = {
-    workspace: options.workspace,
-    prompt: options.prompt,
-    image,
-    ...(options.model !== undefined ? { model: options.model } : {}),
-  };
+  const binding = resolveBinding(options.agent ?? inferAgent(image), image);
+  return runBoundAgent(
+    binding,
+    {
+      workspace: options.workspace,
+      prompt: options.prompt,
+      image,
+      ...(options.model !== undefined ? { model: options.model } : {}),
+    },
+    options.dockerRunner,
+  );
+}
 
+function resolveBinding(
+  agent: typeof CURSOR_IMAGE | typeof CLAUDE_IMAGE | undefined,
+  image: string,
+): AgentBinding {
   if (agent === CURSOR_IMAGE) {
-    return runCursorInDocker(runOpts, options.dockerRunner);
+    return { ...cursorBinding, image };
   }
-
   if (agent === CLAUDE_IMAGE) {
-    return runClaudeInDocker(runOpts, options.dockerRunner);
+    return { ...claudeBinding, image };
   }
-
   throw new Error(
     `Cannot run image ${image}: unknown agent binding. Pass agent: "${CURSOR_IMAGE}" or "${CLAUDE_IMAGE}".`,
   );

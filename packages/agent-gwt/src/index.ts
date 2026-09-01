@@ -1,6 +1,6 @@
 export type {
   AgentContext,
-  AgentResult,
+  AgentRunResult,
   Agent,
   AgentOptions,
   AgentName,
@@ -13,31 +13,27 @@ export { the_prompt } from "./given/the_prompt.js";
 export { executing_the_agent } from "./when/executing_the_agent.js";
 export { agent } from "./given/agent.js";
 
-// Soft-break re-exports from clanker-cleanroom
 export {
   CONTAINER_AUTH_PATH,
   CURSOR_IMAGE,
   defaultHostAuthFile,
-  buildDockerArgs,
-  runCursorInDocker,
   cursorAgent,
-  type RunCursorInDockerOptions,
+  cursorBinding,
   CLAUDE_API_KEY_ENV,
   CLAUDE_CONTAINER_CREDENTIALS_PATH,
   CLAUDE_IMAGE,
   CLAUDE_OAUTH_TOKEN_ENV,
   defaultClaudeHostCredentialsFile,
-  buildClaudeDockerArgs,
   resolveClaudeCredentials,
-  runClaudeInDocker,
   claudeAgent,
-  type ClaudeAgentResult,
+  claudeBinding,
   type ClaudeCredentials,
-  type RunClaudeInDockerOptions,
   resolveAgent,
   agentRegistry,
   createAgent,
   type CreateAgentBindings,
+  type AgentBinding,
+  type TokenUsage,
   buildImages,
   resetBuildMemo,
   type BuildImagesOptions,
@@ -53,6 +49,7 @@ export {
   buildDockerRunArgs,
   invokeDocker,
   runDocker,
+  runBoundAgent,
   run,
   type RunOptions,
   type DockerRunner,
@@ -63,9 +60,3 @@ export {
   type RunAgentOptions,
   type AgentRunBindingsOptions,
 } from "clanker-cleanroom";
-
-/** @deprecated Prefer `buildImages()`. Builds all stock agent images. */
-export async function buildAgentImage(_name?: string): Promise<void> {
-  const { buildImages } = await import("clanker-cleanroom");
-  await buildImages();
-}

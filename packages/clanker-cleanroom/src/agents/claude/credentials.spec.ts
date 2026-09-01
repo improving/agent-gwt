@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { type ClaudeCredentials, resolveClaudeCredentials } from "./_resolveCredentials.js";
+import { type ClaudeCredentials, resolveClaudeCredentials } from "./credentials.js";
 import { CLAUDE_API_KEY_ENV, CLAUDE_OAUTH_TOKEN_ENV } from "./constants.js";
 
 const SECRET = "sk-ant-oat01-super-secret";

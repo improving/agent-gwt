@@ -202,17 +202,12 @@ An empty `globs` array, a glob that matches no files, a `base` that does not mat
 
 ### Inspecting the result
 
-`this.agentResult` is the parsed JSON the CLI printed, for either agent. For Claude Code, `ClaudeAgentResult` types the useful fields:
+`this.agentResult` is normalized metrics (`AgentRunResult`) — duration, cost, and token usage. Dialog text is not included. Missing fields are `null` (Cursor has no dollar cost in CLI output today):
 
 ```ts
-import type { ClaudeAgentResult } from "agent-gwt";
-
-function used_one_turn(this: Context) {
-  const result = this.agentResult as ClaudeAgentResult;
-
-  expect(result.is_error).toBe(false);
-  expect(result.num_turns).toBeGreaterThan(0);
-  expect(result.total_cost_usd).toBeLessThan(0.5);
+function cheap_enough(this: Context) {
+  expect(this.agentResult.durationMs).not.toBeNull();
+  expect(this.agentResult.costUsd).toBeLessThan(0.5); // Claude; null for Cursor
 }
 ```
 
@@ -285,7 +280,7 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 2. Calls `this.agent.run(...)` with `this.image`:
    - Cursor: `docker run` with credentials-only mount + `agent -p --force --output-format json [--model …] -- <prompt>`
    - Claude: `docker run` with the workspace mount and credentials forwarded by env **name** (the value never appears on the host command line) or a read-only `.credentials.json` mount + `claude -p --output-format json --dangerously-skip-permissions [--model …] -- <prompt>`
-3. Sets `this.agentResult` to the parsed JSON
+3. Sets `this.agentResult` to normalized metrics (`durationMs`, `costUsd`, `usage`)
 
 ## Exports
 
@@ -299,8 +294,8 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 | `cleanup_workspace`                                | Remove the temp workspace (use in `withAspect` after)                                       |
 | `the_prompt(text)`                                 | Curried `given` — sets `this.prompt`                                                        |
 | `executing_the_agent`                              | `when` — runs `this.agent.run(...)`                                                         |
-| `ClaudeAgentResult`                                | Type for Claude Code's JSON result (`is_error`, `result`, `num_turns`, `total_cost_usd`, …) |
 | `ClaudeCredentials` / `resolveClaudeCredentials()` | Credential source for the Claude container (token, API key, or file)                        |
+| `AgentRunResult`                                   | Normalized metrics: `durationMs`, `costUsd`, `usage` (null when unavailable)                |
 
 ## Isolation notes
 

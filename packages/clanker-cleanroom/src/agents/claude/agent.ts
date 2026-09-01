@@ -1,8 +1,4 @@
 import { createAgent } from "../create-agent.js";
-import { CLAUDE_IMAGE } from "./constants.js";
-import { runClaudeInDocker } from "./run.js";
+import { claudeBinding } from "./binding.js";
 
-export const claudeAgent = createAgent({
-  image: CLAUDE_IMAGE,
-  run: runClaudeInDocker,
-});
+export const claudeAgent = createAgent(claudeBinding);

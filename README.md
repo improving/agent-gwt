@@ -14,4 +14,4 @@ pnpm run test
 pnpm run lint
 ```
 
-See [packages/agent-gwt/README.md](packages/agent-gwt/README.md) for usage.
+See [packages/clanker-cleanroom/README.md](packages/clanker-cleanroom/README.md) and [packages/agent-gwt/README.md](packages/agent-gwt/README.md) for usage.

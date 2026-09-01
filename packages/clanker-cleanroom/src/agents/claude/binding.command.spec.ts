@@ -2,8 +2,11 @@ import { describe, expect } from "vitest";
 import test from "vitest-gwt";
 
 import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "../base/constants.js";
-import { buildClaudeDockerArgs } from "./_buildDockerArgs.js";
-import type { ClaudeCredentials } from "./_resolveCredentials.js";
+import { buildDockerRunArgs } from "../docker.js";
+import type { DockerVolumeMount } from "../types.js";
+import { claudeBinding } from "./binding.js";
+import type { ClaudeCredentials } from "./credentials.js";
+import { credentialsEnv } from "./credentials.js";
 import {
   CLAUDE_API_KEY_ENV,
   CLAUDE_CONTAINER_CREDENTIALS_PATH,
@@ -20,7 +23,7 @@ type Context = {
 const envFlagValues = (args: string[]) => args.filter((arg, i) => args[i - 1] === "-e");
 const volumeMounts = (args: string[]) => args.filter((arg, i) => args[i - 1] === "-v");
 
-describe("buildClaudeDockerArgs", () => {
+describe("claudeBinding.command", () => {
   test("runs as host user with an OAuth token forwarded by name only", {
     given: {
       oauth_token_credentials,
@@ -91,25 +94,40 @@ function credentials_file_credentials(this: Context) {
 }
 
 function building_docker_args(this: Context) {
-  this.args = buildClaudeDockerArgs({
-    workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
-    image: "clanker-cleanroom/claude",
-    credentials: this.credentials,
-    uid: 1000,
-    gid: 1000,
-  });
+  this.args = dockerArgs(this.credentials);
 }
 
 function building_docker_args_with_model(this: Context) {
-  this.args = buildClaudeDockerArgs({
-    workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
+  this.args = dockerArgs(this.credentials, { model: "sonnet" });
+}
+
+function dockerArgs(
+  credentials: ClaudeCredentials,
+  options: { model?: string } = {},
+): string[] {
+  const volumes: DockerVolumeMount[] = [
+    { host: "/tmp/.agents-gwt/ws-abc", container: CONTAINER_WORKSPACE },
+  ];
+  if (credentials.kind === "credentials-file") {
+    volumes.push({
+      host: credentials.file,
+      container: CLAUDE_CONTAINER_CREDENTIALS_PATH,
+      mode: "ro",
+    });
+  }
+
+  return buildDockerRunArgs({
     image: "clanker-cleanroom/claude",
-    credentials: this.credentials,
     uid: 1000,
     gid: 1000,
-    model: "sonnet",
+    workdir: CONTAINER_WORKSPACE,
+    env: { HOME: CONTAINER_HOME },
+    envPassthrough: Object.keys(credentialsEnv(credentials)),
+    volumes,
+    command: claudeBinding.command({
+      prompt: "Create a README",
+      ...(options.model !== undefined ? { model: options.model } : {}),
+    }),
   });
 }
 

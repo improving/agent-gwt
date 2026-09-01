@@ -2,7 +2,6 @@ import { describe, expect } from "vitest";
 import test, { withAspect } from "vitest-gwt";
 import {
   type AgentContext,
-  type ClaudeAgentResult,
   a_workspace,
   agent,
   cleanup_workspace,
@@ -26,18 +25,15 @@ describe.skipIf(!hasClaudeCredential())("claude agent (e2e)", () => {
     then: {
       readme_exists,
       readme_contains_HELLO_WORLD,
-      result_is_a_successful_claude_run,
+      result_has_metrics,
     },
   });
 });
 
-function result_is_a_successful_claude_run(this: AgentContext) {
-  const result = this.agentResult as ClaudeAgentResult;
-
-  expect(result.type).toBe("result");
-  expect(result.is_error).toBe(false);
-  expect(result.num_turns).toBeGreaterThan(0);
+function result_has_metrics(this: AgentContext) {
+  expect(this.agentResult.durationMs).not.toBeNull();
+  expect(this.agentResult.costUsd).not.toBeNull();
   console.log(
-    `claude: ${result.num_turns} turns, $${result.total_cost_usd.toFixed(4)}, session ${result.session_id}`,
+    `claude: ${this.agentResult.durationMs}ms, $${(this.agentResult.costUsd ?? 0).toFixed(4)}`,
   );
 }

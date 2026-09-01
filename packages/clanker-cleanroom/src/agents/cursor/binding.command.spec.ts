@@ -2,14 +2,15 @@ import { describe, expect } from "vitest";
 import test from "vitest-gwt";
 
 import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "../base/constants.js";
-import { buildDockerArgs } from "./_buildDockerArgs.js";
+import { buildDockerRunArgs } from "../docker.js";
+import { cursorBinding } from "./binding.js";
 import { CONTAINER_AUTH_PATH } from "./constants.js";
 
 type Context = {
   args: string[];
 };
 
-describe("buildDockerArgs", () => {
+describe("cursorBinding.command", () => {
   test("runs as host user with credentials-only and workspace mounts", {
     when: {
       building_docker_args,
@@ -35,25 +36,32 @@ describe("buildDockerArgs", () => {
 });
 
 function building_docker_args(this: Context) {
-  this.args = buildDockerArgs({
-    workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
-    image: "clanker-cleanroom/cursor",
-    authFile: "/home/dev/.config/cursor/auth.json",
-    uid: 1000,
-    gid: 1000,
-  });
+  this.args = dockerArgs();
 }
 
 function building_docker_args_with_model(this: Context) {
-  this.args = buildDockerArgs({
-    workspace: "/tmp/.agents-gwt/ws-abc",
-    prompt: "Create a README",
+  this.args = dockerArgs({ model: "composer-2" });
+}
+
+function dockerArgs(options: { model?: string } = {}): string[] {
+  return buildDockerRunArgs({
     image: "clanker-cleanroom/cursor",
-    authFile: "/home/dev/.config/cursor/auth.json",
     uid: 1000,
     gid: 1000,
-    model: "composer-2",
+    workdir: CONTAINER_WORKSPACE,
+    env: { HOME: CONTAINER_HOME },
+    volumes: [
+      { host: "/tmp/.agents-gwt/ws-abc", container: CONTAINER_WORKSPACE },
+      {
+        host: "/home/dev/.config/cursor/auth.json",
+        container: CONTAINER_AUTH_PATH,
+        mode: "ro",
+      },
+    ],
+    command: cursorBinding.command({
+      prompt: "Create a README",
+      ...(options.model !== undefined ? { model: options.model } : {}),
+    }),
   });
 }
 

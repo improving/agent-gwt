@@ -1,8 +1,4 @@
 import { createAgent } from "../create-agent.js";
-import { CURSOR_IMAGE } from "./constants.js";
-import { runCursorInDocker } from "./run.js";
+import { cursorBinding } from "./binding.js";
 
-export const cursorAgent = createAgent({
-  image: CURSOR_IMAGE,
-  run: runCursorInDocker,
-});
+export const cursorAgent = createAgent(cursorBinding);

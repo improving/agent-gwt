@@ -20,7 +20,7 @@ export function hasClaudeCredential(env: NodeJS.ProcessEnv = process.env): boole
   );
 }
 
-/** Same check runCursorInDocker() makes before it starts the container. */
+/** Same check cursorBinding.prepare makes before the container starts. */
 export function hasCursorCredential(): boolean {
   return existsSync(defaultHostAuthFile(homedir()));
 }
