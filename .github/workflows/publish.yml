@@ -52,6 +52,7 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          # Root package.json is the canonical version (kept in sync with both packages).
           base_version="$(git show "${BASE_SHA}:package.json" | jq -r .version)"
           next="$(node .github/scripts/next-version.mjs "${base_version}" "${LABELS}")"
           prerelease="${next}-build.${RUN_NUMBER}"
@@ -60,11 +61,13 @@ jobs:
           echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
           echo "Prerelease version: ${prerelease} (from ${base_version})"
 
-      - name: Set package version
+      - name: Set package versions
         run: |
           set -euo pipefail
-          jq --arg v "${{ steps.version.outputs.prerelease }}" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
+          for pkg in package.json packages/agent-gwt/package.json packages/clanker-cleanroom/package.json; do
+            jq --arg v "${{ steps.version.outputs.prerelease }}" '.version = $v' "${pkg}" > "${pkg}.tmp"
+            mv "${pkg}.tmp" "${pkg}"
+          done
 
       - name: Lint
         run: pnpm run lint
@@ -75,14 +78,16 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Publish prerelease
+      - name: Publish prereleases
         run: |
           set -euo pipefail
-          pnpm publish \
-            --access public \
-            --tag "pr-${{ github.event.pull_request.number }}" \
-            --no-git-checks \
-            --ignore-scripts
+          for filter in clanker-cleanroom agent-gwt; do
+            pnpm --filter "${filter}" publish \
+              --access public \
+              --tag "pr-${{ github.event.pull_request.number }}" \
+              --no-git-checks \
+              --ignore-scripts
+          done
 
   release:
     if: >-
@@ -126,69 +131,49 @@ jobs:
           echo "pr_tag=pr-${PR_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "Release version: ${next} (from ${base_version}, tag pr-${PR_NUMBER})"
 
-      - name: Download prerelease tarball
-        id: pack
+      - name: Download and stage packages
+        id: stage
         env:
           PR_TAG: ${{ steps.version.outputs.pr_tag }}
           NEXT: ${{ steps.version.outputs.next }}
         run: |
           set -euo pipefail
-          # Work outside the git checkout — pnpm stage publish refuses unclean trees
           workdir="${RUNNER_TEMP}/agent-gwt-stage"
           mkdir -p "${workdir}"
-          cd "${workdir}"
-          # Avoid empty _authToken from setup-node's .npmrc when fetching a public package
-          npm pack "agent-gwt@${PR_TAG}" --userconfig /dev/null --registry https://registry.npmjs.org
-          tarball="$(ls -1 agent-gwt-*.tgz | head -n1)"
-          mkdir -p staged
-          tar -xzf "${tarball}" -C staged
-          jq --arg v "${NEXT}" '.version = $v' staged/package/package.json > staged/package/package.json.tmp
-          mv staged/package/package.json.tmp staged/package/package.json
-          echo "package_dir=${workdir}/staged/package" >> "$GITHUB_OUTPUT"
-          echo "Rewrote staged package version to ${NEXT} at ${workdir}/staged/package"
-
-      - name: Stage release
-        id: stage
-        env:
-          PACKAGE_DIR: ${{ steps.pack.outputs.package_dir }}
-        run: |
-          set -euo pipefail
-          # Keep stderr (WARN/OIDC logs) out of --json stdout so jq can parse.
-          err="$(mktemp)"
-          set +e
-          output="$(pnpm stage publish "${PACKAGE_DIR}" --access public --tag latest --json 2>"${err}")"
-          status=$?
-          set -e
-          cat "${err}" >&2 || true
-          rm -f "${err}"
-          printf '%s\n' "${output}"
-          if [[ "${status}" -ne 0 ]]; then
-            exit "${status}"
-          fi
-          if ! printf '%s\n' "${output}" | jq -e 'type == "object"' >/dev/null; then
-            echo "Stage publish did not return JSON" >&2
-            exit 1
-          fi
-          if printf '%s\n' "${output}" | jq -e '.error' >/dev/null; then
-            echo "Stage publish returned an error payload" >&2
-            exit 1
-          fi
-          stage_id="$(printf '%s\n' "${output}" | jq -r 'to_entries[0].value.stageId // empty')"
-          echo "stage_id=${stage_id}" >> "$GITHUB_OUTPUT"
+          stage_ids=()
+          for name in clanker-cleanroom agent-gwt; do
+            cd "${workdir}"
+            rm -rf staged "${name}"-*.tgz
+            npm pack "${name}@${PR_TAG}" --userconfig /dev/null --registry https://registry.npmjs.org
+            tarball="$(ls -1 ${name}-*.tgz | head -n1)"
+            mkdir -p staged
+            tar -xzf "${tarball}" -C staged
+            jq --arg v "${NEXT}" '.version = $v' staged/package/package.json > staged/package/package.json.tmp
+            mv staged/package/package.json.tmp staged/package/package.json
+            err="$(mktemp)"
+            set +e
+            output="$(pnpm stage publish "${workdir}/staged/package" --access public --tag latest --json 2>"${err}")"
+            status=$?
+            set -e
+            cat "${err}" >&2 || true
+            rm -f "${err}"
+            printf '%s\n' "${output}"
+            if [[ "${status}" -ne 0 ]]; then
+              exit "${status}"
+            fi
+            stage_id="$(printf '%s\n' "${output}" | jq -r 'to_entries[0].value.stageId // empty')"
+            stage_ids+=("${name}:${stage_id}")
+          done
           {
             echo "## Staged release"
             echo ""
-            echo "Version **${{ steps.version.outputs.next }}** was staged from \`${{ steps.version.outputs.pr_tag }}\`."
+            echo "Version **${NEXT}** was staged from \`${PR_TAG}\`."
             echo ""
-            if [[ -n "${stage_id}" ]]; then
-              echo "Approve with:"
-              echo ""
-              echo "\`\`\`bash"
-              echo "pnpm stage approve ${stage_id}"
-              echo "\`\`\`"
-            else
-              echo "Approve from the [Staged Packages](https://www.npmjs.com/stages) tab or via \`pnpm stage list\` / \`pnpm stage approve\`."
-            fi
+            for entry in "${stage_ids[@]}"; do
+              pkg="${entry%%:*}"
+              sid="${entry#*:}"
+              echo "- **${pkg}**: \`pnpm stage approve ${sid}\`"
+            done
             echo ""
             echo "Approval requires 2FA and cannot run via OIDC."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -198,16 +183,25 @@ jobs:
           NEXT: ${{ steps.version.outputs.next }}
         run: |
           set -euo pipefail
-          jq --arg v "${NEXT}" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
+          packages=(package.json packages/agent-gwt/package.json packages/clanker-cleanroom/package.json)
+          for pkg in "${packages[@]}"; do
+            if [[ ! -f "${pkg}" ]]; then
+              echo "Missing ${pkg}; expected synced monorepo versions" >&2
+              exit 1
+            fi
+            jq --arg v "${NEXT}" '.version = $v' "${pkg}" > "${pkg}.tmp"
+            mv "${pkg}.tmp" "${pkg}"
+          done
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json
+          git add "${packages[@]}"
           git commit -m "chore: release v${NEXT}"
           git push origin main
 
-      - name: Remove PR dist-tag
+      - name: Remove PR dist-tags
         continue-on-error: true
         env:
           PR_TAG: ${{ steps.version.outputs.pr_tag }}
-        run: npm dist-tag rm agent-gwt "${PR_TAG}" || true
+        run: |
+          npm dist-tag rm agent-gwt "${PR_TAG}" || true
+          npm dist-tag rm clanker-cleanroom "${PR_TAG}" || true
