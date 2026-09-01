@@ -14,10 +14,11 @@ type Context = {
   packageRoot: string;
   dockerRunner: DockerRunner;
   buildTags: string[];
+  error?: Error;
 };
 
 describe("buildImages", () => {
-  test("builds in dependency order and writes the registry", {
+  test("builds in dependency order and writes the registry with agent", {
     given: {
       dockerfile_folder,
       docker_runner_that_builds,
@@ -27,7 +28,35 @@ describe("buildImages", () => {
     },
     then: {
       built_base_then_cursor,
-      registry_lists_both_images,
+      registry_lists_base_without_agent,
+      registry_lists_cursor_with_agent,
+    },
+  });
+
+  test("records agent on toolchain FROM stock cursor", {
+    given: {
+      toolchain_from_cursor_folder,
+      docker_runner_that_builds,
+      stock_cursor_already_in_registry,
+    },
+    when: {
+      building_images,
+    },
+    then: {
+      registry_toolchain_has_cursor_agent,
+    },
+  });
+
+  test("inherits agent through a nested local toolchain", {
+    given: {
+      nested_toolchain_folder,
+      docker_runner_that_builds,
+    },
+    when: {
+      building_images,
+    },
+    then: {
+      nested_toolchain_has_cursor_agent,
     },
   });
 
@@ -60,6 +89,55 @@ function dockerfile_folder(this: Context) {
     "# clanker-cleanroom/cursor\nFROM clanker-cleanroom/base\n",
   );
   this.buildTags = [];
+}
+
+function toolchain_from_cursor_folder(this: Context) {
+  resetBuildMemo();
+  this.dir = mkdtempSync(join(tmpdir(), "clanker-build-"));
+  this.packageRoot = mkdtempSync(join(tmpdir(), "clanker-root-"));
+  resetRegistry({ packageRoot: this.packageRoot });
+  writeFileSync(
+    join(this.dir, "node.Dockerfile"),
+    "# cursor:node\nFROM clanker-cleanroom/cursor\n",
+  );
+  this.buildTags = [];
+}
+
+function nested_toolchain_folder(this: Context) {
+  resetBuildMemo();
+  this.dir = mkdtempSync(join(tmpdir(), "clanker-build-"));
+  this.packageRoot = mkdtempSync(join(tmpdir(), "clanker-root-"));
+  resetRegistry({ packageRoot: this.packageRoot });
+  writeFileSync(
+    join(this.dir, "base.Dockerfile"),
+    "# clanker-cleanroom/base\nFROM archlinux:latest\n",
+  );
+  writeFileSync(
+    join(this.dir, "cursor.Dockerfile"),
+    "# clanker-cleanroom/cursor\nFROM clanker-cleanroom/base\n",
+  );
+  writeFileSync(
+    join(this.dir, "node.Dockerfile"),
+    "# cursor:node\nFROM clanker-cleanroom/cursor\n",
+  );
+  writeFileSync(
+    join(this.dir, "node-git.Dockerfile"),
+    "# cursor:node-git\nFROM cursor:node\n",
+  );
+  this.buildTags = [];
+}
+
+function stock_cursor_already_in_registry(this: Context) {
+  upsertRegistryEntry(
+    "clanker-cleanroom/cursor",
+    {
+      image: "clanker-cleanroom/cursor",
+      dockerfile: "cursor.Dockerfile",
+      builtAt: new Date().toISOString(),
+      agent: "cursor",
+    },
+    { packageRoot: this.packageRoot },
+  );
 }
 
 function docker_runner_that_builds(this: Context) {
@@ -112,6 +190,7 @@ function prior_registry_entry(this: Context) {
       image: "clanker-cleanroom/cursor",
       dockerfile: "cursor.Dockerfile",
       builtAt: new Date().toISOString(),
+      agent: "cursor",
     },
     { packageRoot: this.packageRoot },
   );
@@ -129,10 +208,32 @@ function built_base_then_cursor(this: Context) {
   expect(this.buildTags).toEqual(["clanker-cleanroom/base", "clanker-cleanroom/cursor"]);
 }
 
-function registry_lists_both_images(this: Context) {
+function registry_lists_base_without_agent(this: Context) {
   const registry = readRegistry({ packageRoot: this.packageRoot });
-  expect(registry.images["clanker-cleanroom/base"]?.image).toBe("clanker-cleanroom/base");
-  expect(registry.images["clanker-cleanroom/cursor"]?.image).toBe("clanker-cleanroom/cursor");
+  expect(registry.version).toBe(2);
+  expect(registry.images["clanker-cleanroom/base"]).toEqual(
+    expect.objectContaining({
+      image: "clanker-cleanroom/base",
+    }),
+  );
+  expect(registry.images["clanker-cleanroom/base"]?.agent).toBeUndefined();
+}
+
+function registry_lists_cursor_with_agent(this: Context) {
+  const registry = readRegistry({ packageRoot: this.packageRoot });
+  expect(registry.images["clanker-cleanroom/cursor"]?.agent).toBe("cursor");
+}
+
+function registry_toolchain_has_cursor_agent(this: Context) {
+  const registry = readRegistry({ packageRoot: this.packageRoot });
+  expect(registry.images["cursor:node"]?.agent).toBe("cursor");
+  expect(registry.images["cursor:node"]?.image).toBe("cursor:node");
+}
+
+function nested_toolchain_has_cursor_agent(this: Context) {
+  const registry = readRegistry({ packageRoot: this.packageRoot });
+  expect(registry.images["cursor:node"]?.agent).toBe("cursor");
+  expect(registry.images["cursor:node-git"]?.agent).toBe("cursor");
 }
 
 function did_not_build(this: Context) {

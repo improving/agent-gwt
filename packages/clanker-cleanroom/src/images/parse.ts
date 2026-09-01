@@ -8,7 +8,9 @@ export type DockerfileEntry = {
   relative: string;
   /** First-line tag / Docker image name (e.g. `clanker-cleanroom/cursor`). */
   tag: string;
-  /** Tags from this folder that appear in FROM lines. */
+  /** Every image referenced by a FROM line. */
+  fromImages: string[];
+  /** Tags from this folder that appear in FROM lines (for topo-sort). */
   dependencies: string[];
 };
 
@@ -17,7 +19,7 @@ const FROM_LINE =
   /^FROM\s+(?:--platform=\S+\s+)?([^\s]+)(?:\s+AS\s+\S+)?\s*$/i;
 
 /**
- * Discover `*.Dockerfile` files in `dir` and parse first-line tags + local FROM deps.
+ * Discover `*.Dockerfile` files in `dir` and parse first-line tags + FROM images.
  */
 export function parseDockerfiles(dir: string): DockerfileEntry[] {
   const names = readdirSync(dir).filter((name) => name.endsWith(".Dockerfile")).sort();
@@ -46,10 +48,20 @@ export function parseDockerfiles(dir: string): DockerfileEntry[] {
     }
     tags.add(tag);
 
+    const fromImages: string[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const fromMatch = FROM_LINE.exec(trimmed);
+      if (fromMatch !== null) {
+        fromImages.push(fromMatch[1]!);
+      }
+    }
+
     entries.push({
       file,
       relative: name,
       tag,
+      fromImages,
       dependencies: [],
     });
   }
@@ -57,20 +69,7 @@ export function parseDockerfiles(dir: string): DockerfileEntry[] {
   const tagSet = new Set(entries.map((entry) => entry.tag));
 
   for (const entry of entries) {
-    const contents = readFileSync(entry.file, "utf8");
-    const deps = new Set<string>();
-    for (const line of contents.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      const fromMatch = FROM_LINE.exec(trimmed);
-      if (fromMatch === null) {
-        continue;
-      }
-      const image = fromMatch[1]!;
-      if (tagSet.has(image)) {
-        deps.add(image);
-      }
-    }
-    entry.dependencies = [...deps];
+    entry.dependencies = entry.fromImages.filter((image) => tagSet.has(image));
   }
 
   return entries;

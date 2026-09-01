@@ -1,5 +1,4 @@
 export type {
-  Agent,
   AgentBinding,
   AgentOptions,
   AgentPrepareResult,
@@ -25,10 +24,15 @@ export {
 
 export { ensureDockerImage } from "./agents/ensure-image.js";
 export { parseAgentJsonOutput } from "./agents/parse-result.js";
+export { Agent } from "./agents/agent.js";
 export { createAgent, type CreateAgentBindings } from "./agents/create-agent.js";
-export { resolveAgent, agentRegistry, type AgentName } from "./agents/registry.js";
+export {
+  bindingRegistry,
+  type AgentName,
+  type StockAgentName,
+} from "./agents/registry.js";
+export { isStockAgentName, stockAgentNameForImage, STOCK_AGENT_IMAGES } from "./agents/stock.js";
 export { runBoundAgent, type RunBoundAgentOptions } from "./agents/run-bound.js";
-export { run, type RunOptions } from "./agents/run.js";
 
 export {
   CONTAINER_AUTH_PATH,
@@ -61,7 +65,9 @@ export {
   readRegistry,
   resetRegistry,
   registryPath,
+  upsertRegistryEntry,
   IMAGES_REGISTRY_FILENAME,
+  IMAGE_REGISTRY_VERSION,
   type ImageRegistry,
   type ImageRegistryEntry,
   type RegistryOptions,

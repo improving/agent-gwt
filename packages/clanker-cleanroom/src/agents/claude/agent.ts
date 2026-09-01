@@ -1,4 +1,3 @@
-import { createAgent } from "../create-agent.js";
-import { claudeBinding } from "./binding.js";
+import { Agent } from "../agent.js";
 
-export const claudeAgent = createAgent(claudeBinding);
+export const claudeAgent = new Agent("claude");

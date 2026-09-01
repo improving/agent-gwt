@@ -1,12 +1,11 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, vi } from "vitest";
 import test, { withAspect } from "vitest-gwt";
 
-import {
-  agentRegistry,
-  CLAUDE_IMAGE,
-  CURSOR_IMAGE,
-  type AgentName,
-} from "clanker-cleanroom";
+import { CLAUDE_IMAGE, CURSOR_IMAGE, resetRegistry, upsertRegistryEntry } from "clanker-cleanroom";
 import * as cleanroom from "clanker-cleanroom";
 
 import { agent } from "./agent.js";
@@ -16,7 +15,8 @@ type Context = AgentContext & {
   ensureCalls: number;
   ensuredImage: string | undefined;
   error: Error | undefined;
-  variant: string;
+  packageRoot: string;
+  toolchainName: string;
   toolchainImage: string;
 };
 
@@ -31,7 +31,7 @@ describe("agent", () => {
       applying_agent: agent({ name: "cursor", model: "auto" }),
     },
     then: {
-      agent_is: agent_is("cursor"),
+      agent_name_is: agent_name_is("cursor"),
       model_is: model_is("auto"),
       image_is: image_is(CURSOR_IMAGE),
       ensure_was_called_with: ensure_was_called_with(CURSOR_IMAGE),
@@ -46,48 +46,37 @@ describe("agent", () => {
       applying_agent: agent({ name: "cursor", image: "my-app/agent:local" }),
     },
     then: {
-      agent_is: agent_is("cursor"),
+      agent_name_is: agent_name_is("cursor"),
       image_is: image_is("my-app/agent:local"),
       ensure_was_called_with: ensure_was_called_with("my-app/agent:local"),
     },
   });
 
-  test("resolves a registered toolchain variant", {
+  test("resolves a registered toolchain by name", {
     given: {
       stub_ensure_docker_image,
-      registered_toolchain_variant,
+      registered_toolchain,
     },
     when: {
-      applying_agent_with_variant,
+      applying_agent_with_toolchain,
     },
     then: {
-      agent_is: agent_is("cursor"),
-      image_is_toolchain_variant,
+      agent_name_is_toolchain,
+      image_is_toolchain,
       ensure_was_called_with_toolchain,
     },
   });
 
-  test("throws when the toolchain variant is unknown", {
+  test("throws when the toolchain name is unknown", {
     given: {
       stub_ensure_docker_image,
+      empty_registry_root,
     },
     when: {
-      applying_agent_with_unknown_variant,
+      applying_unknown_toolchain,
     },
     then: {
-      error_mentions_unknown_variant,
-    },
-  });
-
-  test("throws when both image and variant are set", {
-    given: {
-      stub_ensure_docker_image,
-    },
-    when: {
-      applying_agent_with_image_and_variant,
-    },
-    then: {
-      error_mentions_mutual_exclusion,
+      error_mentions_unknown_agent,
     },
   });
 
@@ -99,7 +88,7 @@ describe("agent", () => {
       applying_agent: agent({ name: "claude", model: "sonnet" }),
     },
     then: {
-      agent_is: agent_is("claude"),
+      agent_name_is: agent_name_is("claude"),
       model_is: model_is("sonnet"),
       image_is: image_is(CLAUDE_IMAGE),
       ensure_was_called_with: ensure_was_called_with(CLAUDE_IMAGE),
@@ -122,45 +111,51 @@ function stub_ensure_docker_image(this: Context) {
   });
 }
 
-function registered_toolchain_variant(this: Context) {
-  this.variant = "my-app/cursor-node";
-  this.toolchainImage = "my-app/cursor-node";
-  vi.spyOn(cleanroom, "resolveImage").mockImplementation((tag) => {
-    if (tag === this.variant) {
-      return this.toolchainImage;
-    }
-    return undefined;
-  });
+function empty_registry_root(this: Context) {
+  this.packageRoot = mkdtempSync(join(tmpdir(), "agent-gwt-reg-"));
+  resetRegistry({ packageRoot: this.packageRoot });
 }
 
-async function applying_agent_with_variant(this: Context) {
-  await agent({ name: "cursor", variant: this.variant, model: "auto" }).call(this);
+function registered_toolchain(this: Context) {
+  empty_registry_root.call(this);
+  this.toolchainName = "cursor:node";
+  this.toolchainImage = "cursor:node";
+  upsertRegistryEntry(
+    this.toolchainName,
+    {
+      image: this.toolchainImage,
+      dockerfile: "node.Dockerfile",
+      builtAt: new Date().toISOString(),
+      agent: "cursor",
+    },
+    { packageRoot: this.packageRoot },
+  );
 }
 
-async function applying_agent_with_unknown_variant(this: Context) {
+async function applying_agent_with_toolchain(this: Context) {
+  await agent({
+    name: this.toolchainName,
+    model: "auto",
+    packageRoot: this.packageRoot,
+  }).call(this);
+}
+
+async function applying_unknown_toolchain(this: Context) {
   try {
-    await agent({ name: "cursor", variant: "missing" }).call(this);
+    await agent({ name: "missing:toolchain", packageRoot: this.packageRoot }).call(this);
   } catch (error) {
     this.error = error as Error;
   }
 }
 
-async function applying_agent_with_image_and_variant(this: Context) {
-  try {
-    await agent({
-      name: "cursor",
-      image: "my-app/agent:local",
-      variant: "node18",
-    }).call(this);
-  } catch (error) {
-    this.error = error as Error;
-  }
-}
-
-function agent_is(name: AgentName) {
+function agent_name_is(name: string) {
   return function (this: Context) {
-    expect(this.agent).toBe(agentRegistry[name]);
+    expect(this.agent.name).toBe(name);
   };
+}
+
+function agent_name_is_toolchain(this: Context) {
+  expect(this.agent.name).toBe(this.toolchainName);
 }
 
 function model_is(model: string) {
@@ -175,7 +170,7 @@ function image_is(image: string) {
   };
 }
 
-function image_is_toolchain_variant(this: Context) {
+function image_is_toolchain(this: Context) {
   expect(this.image).toBe(this.toolchainImage);
 }
 
@@ -191,11 +186,7 @@ function ensure_was_called_with_toolchain(this: Context) {
   expect(this.ensuredImage).toBe(this.toolchainImage);
 }
 
-function error_mentions_unknown_variant(this: Context) {
-  expect(this.error?.message).toContain('Unknown toolchain variant "missing"');
+function error_mentions_unknown_agent(this: Context) {
+  expect(this.error?.message).toContain('Unknown agent "missing:toolchain"');
   expect(this.error?.message).toContain("buildImages");
-}
-
-function error_mentions_mutual_exclusion(this: Context) {
-  expect(this.error?.message).toContain("cannot set both image and variant");
 }

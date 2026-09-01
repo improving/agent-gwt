@@ -1,11 +1,13 @@
 import { describe, expect, vi } from "vitest";
 import test from "vitest-gwt";
 
-import type { Agent, AgentContext } from "../types.js";
+import { Agent } from "clanker-cleanroom";
+
+import type { AgentContext } from "../types.js";
 import { executing_the_agent } from "./executing_the_agent.js";
 
 type Context = AgentContext & {
-  runMock: ReturnType<typeof vi.fn>;
+  runSpy: ReturnType<typeof vi.spyOn>;
 };
 
 describe("executing_the_agent", () => {
@@ -71,23 +73,29 @@ describe("executing_the_agent", () => {
   });
 });
 
+const stubResult = {
+  durationMs: 10,
+  costUsd: null,
+  usage: {
+    inputTokens: null,
+    outputTokens: null,
+    cacheReadTokens: null,
+    cacheWriteTokens: null,
+  },
+} as const;
+
 function stubAgent(this: Context): void {
-  this.runMock = vi.fn(async () => ({
-    durationMs: 10,
-    costUsd: null,
-    usage: {
-      inputTokens: null,
-      outputTokens: null,
-      cacheReadTokens: null,
-      cacheWriteTokens: null,
-    },
-  }));
-  this.agent = {
+  this.agent = Agent.fromBinding({
     image: "clanker-cleanroom/cursor",
-    ensureImage: async () => undefined,
-    buildImage: async () => undefined,
-    run: this.runMock as Agent["run"],
-  };
+    displayName: "Cursor",
+    command: () => ["agent"],
+    prepare: async () => ({}),
+    parseResult: () => ({ ...stubResult, usage: { ...stubResult.usage } }),
+  });
+  this.runSpy = vi.spyOn(this.agent, "run").mockResolvedValue({
+    ...stubResult,
+    usage: { ...stubResult.usage },
+  });
 }
 
 function workspace_prompt_and_agent(this: Context) {
@@ -139,7 +147,7 @@ function agent_result_is_set(this: Context) {
 }
 
 function agent_was_called_with_workspace_and_prompt(this: Context) {
-  expect(this.runMock).toHaveBeenCalledWith({
+  expect(this.runSpy).toHaveBeenCalledWith({
     workspace: "/tmp/.agents-gwt/ws-test",
     prompt: "Create a README",
     image: "clanker-cleanroom/cursor",
@@ -147,7 +155,7 @@ function agent_was_called_with_workspace_and_prompt(this: Context) {
 }
 
 function agent_was_called_with_model(this: Context) {
-  expect(this.runMock).toHaveBeenCalledWith({
+  expect(this.runSpy).toHaveBeenCalledWith({
     workspace: "/tmp/.agents-gwt/ws-test",
     prompt: "Create a README",
     image: "clanker-cleanroom/cursor",

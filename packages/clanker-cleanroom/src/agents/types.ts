@@ -16,7 +16,7 @@ export type RunAgentOptions = {
   workspace: string;
   prompt: string;
   model?: string;
-  /** Override the agent's default image (e.g. a toolchain-extended tag). */
+  /** Override the agent's default image (e.g. for one-off local tags). */
   image?: string;
 };
 
@@ -24,20 +24,8 @@ export type AgentRunBindingsOptions = RunAgentOptions & {
   image: string;
 };
 
-export type Agent = {
-  image: string;
-  ensureImage: () => Promise<void>;
-  buildImage: () => Promise<void>;
-  run: (options: RunAgentOptions) => Promise<AgentRunResult>;
-};
-
 export type AgentOptions = {
   model?: string;
-  /**
-   * Image name previously registered via `buildImages({ dir })` (e.g. a toolchain tag).
-   * Mutually exclusive with `image`.
-   */
-  variant?: string;
   /** Docker image tag to ensure and run (defaults to the resolved agent's image). */
   image?: string;
 };

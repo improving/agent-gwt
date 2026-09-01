@@ -1,4 +1,3 @@
-import { createAgent } from "../create-agent.js";
-import { cursorBinding } from "./binding.js";
+import { Agent } from "../agent.js";
 
-export const cursorAgent = createAgent(cursorBinding);
+export const cursorAgent = new Agent("cursor");

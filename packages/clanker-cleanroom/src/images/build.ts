@@ -4,8 +4,14 @@ import { runDocker } from "../agents/docker.js";
 import { PACKAGE_ROOT } from "../package-root.js";
 import type { DockerRunner } from "../agents/types.js";
 import { topoSort } from "./graph.js";
-import { parseDockerfiles } from "./parse.js";
-import { readRegistry, upsertRegistryEntry, type RegistryOptions } from "./registry.js";
+import { inferAgent } from "./infer-agent.js";
+import { parseDockerfiles, type DockerfileEntry } from "./parse.js";
+import {
+  readRegistry,
+  upsertRegistryEntry,
+  type ImageRegistry,
+  type RegistryOptions,
+} from "./registry.js";
 
 export type BuildImagesOptions = RegistryOptions & {
   /** Folder of `*.Dockerfile` files. Defaults to this package's `docker/`. */
@@ -53,7 +59,8 @@ async function doBuild(
   dockerRunner: DockerRunner,
 ): Promise<void> {
   const entries = topoSort(parseDockerfiles(dir));
-  const registry = readRegistry({ packageRoot });
+  const localByTag = new Map(entries.map((entry) => [entry.tag, entry]));
+  let registry = readRegistry({ packageRoot });
 
   for (const entry of entries) {
     if (!force) {
@@ -82,14 +89,26 @@ async function doBuild(
 
     process.stderr.write(`[clanker-cleanroom] Built Docker image ${entry.tag}\n`);
 
-    upsertRegistryEntry(
-      entry.tag,
-      {
-        image: entry.tag,
-        dockerfile: entry.relative,
-        builtAt: new Date().toISOString(),
-      },
-      { packageRoot },
-    );
+    registry = recordBuiltImage(entry, localByTag, registry, packageRoot);
   }
+}
+
+function recordBuiltImage(
+  entry: DockerfileEntry,
+  localByTag: Map<string, DockerfileEntry>,
+  registry: ImageRegistry,
+  packageRoot: string,
+): ImageRegistry {
+  const agent = inferAgent(entry, localByTag, registry);
+  upsertRegistryEntry(
+    entry.tag,
+    {
+      image: entry.tag,
+      dockerfile: entry.relative,
+      builtAt: new Date().toISOString(),
+      ...(agent !== undefined ? { agent } : {}),
+    },
+    { packageRoot },
+  );
+  return readRegistry({ packageRoot });
 }

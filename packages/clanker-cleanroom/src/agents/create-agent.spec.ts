@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, vi } from "vitest";
 import test from "vitest-gwt";
 
+import { Agent } from "./agent.js";
 import { createAgent } from "./create-agent.js";
 import * as ensureImageModule from "./ensure-image.js";
 import * as buildImagesModule from "../images/build.js";
 import * as runBoundModule from "./run-bound.js";
-import type { Agent, AgentBinding, AgentRunResult } from "./types.js";
+import type { AgentBinding, AgentRunResult } from "./types.js";
 
 type Context = {
   agent: Agent;
@@ -101,11 +102,17 @@ function image_is_set(this: Context) {
 }
 
 function run_bound_was_called(this: Context) {
-  expect(runBoundModule.runBoundAgent).toHaveBeenCalledWith(this.binding, {
-    workspace: "/tmp/ws",
-    prompt: "hello",
-    image: "clanker-cleanroom/cursor",
-  });
+  expect(runBoundModule.runBoundAgent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      image: "clanker-cleanroom/cursor",
+      displayName: "Cursor",
+    }),
+    {
+      workspace: "/tmp/ws",
+      prompt: "hello",
+      image: "clanker-cleanroom/cursor",
+    },
+  );
   expect(this.result?.durationMs).toBe(1);
 }
 

@@ -1,9 +1,4 @@
-import type {
-  Agent,
-  AgentName,
-  AgentOptions,
-  AgentRunResult,
-} from "clanker-cleanroom";
+import type { Agent, AgentName, AgentOptions, AgentRunResult } from "clanker-cleanroom";
 
 export type { AgentRunResult, Agent, AgentOptions, AgentName };
 export type { ConfigureAgentOptions } from "./given/agent.js";

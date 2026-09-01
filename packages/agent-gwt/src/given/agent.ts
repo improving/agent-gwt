@@ -1,23 +1,23 @@
-import {
-  type AgentName,
-  ensureDockerImage,
-  resolveAgent,
-  resolveImage,
-  type AgentOptions,
-} from "clanker-cleanroom";
+import { Agent, ensureDockerImage, type RegistryOptions } from "clanker-cleanroom";
 
 import type { AgentContext } from "../types.js";
 
-export type ConfigureAgentOptions = AgentOptions & {
-  name: AgentName;
-};
+export type ConfigureAgentOptions = {
+  /** Stock short name (`cursor`, `claude`) or a registry tag (`cursor:node`). */
+  name: string;
+  model?: string;
+  /** Override the resolved Docker image tag. */
+  image?: string;
+} & RegistryOptions;
 
 export function agent(options: ConfigureAgentOptions) {
-  const resolved = resolveAgent(options.name);
+  const registryOptions =
+    options.packageRoot !== undefined ? { packageRoot: options.packageRoot } : {};
+  const resolved = new Agent(options.name, registryOptions);
 
   return async function (this: AgentContext): Promise<void> {
     this.agent = resolved;
-    this.image = resolveAgentImage(options, resolved.image);
+    this.image = options.image ?? resolved.image;
 
     if (options.model !== undefined) {
       this.model = options.model;
@@ -25,29 +25,4 @@ export function agent(options: ConfigureAgentOptions) {
 
     await ensureDockerImage(this.image);
   };
-}
-
-function resolveAgentImage(options: ConfigureAgentOptions, defaultImage: string): string {
-  if (options.image !== undefined && options.variant !== undefined) {
-    throw new Error(
-      `agent({ name: "${options.name}" }) cannot set both image and variant; pick one.`,
-    );
-  }
-
-  if (options.image !== undefined) {
-    return options.image;
-  }
-
-  if (options.variant !== undefined) {
-    const image = resolveImage(options.variant);
-    if (image === undefined) {
-      throw new Error(
-        `Unknown toolchain variant "${options.variant}" for agent "${options.name}". ` +
-          `Call buildImages({ dir: "..." }) from vitest globalSetup before running tests.`,
-      );
-    }
-    return image;
-  }
-
-  return defaultImage;
 }

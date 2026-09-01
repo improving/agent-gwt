@@ -1,23 +1,9 @@
-import { buildImages } from "../images/build.js";
-import { ensureDockerImage } from "./ensure-image.js";
-import { runBoundAgent } from "./run-bound.js";
-import type { Agent, AgentBinding, RunAgentOptions } from "./types.js";
+import { Agent } from "./agent.js";
+import type { AgentBinding } from "./types.js";
 
 export type CreateAgentBindings = AgentBinding;
 
+/** Wrap a custom binding that is not registered by name. */
 export function createAgent(binding: AgentBinding): Agent {
-  return {
-    image: binding.image,
-    ensureImage: async () => {
-      await ensureDockerImage(binding.image);
-    },
-    buildImage: async () => {
-      await buildImages();
-    },
-    run: (options: RunAgentOptions) =>
-      runBoundAgent(binding, {
-        ...options,
-        image: options.image ?? binding.image,
-      }),
-  };
+  return Agent.fromBinding(binding);
 }

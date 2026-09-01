@@ -51,7 +51,7 @@ pnpm workspace with two packages:
 | --- | --- |
 | `docker/*.Dockerfile` | Stock images; first line `# clanker-cleanroom/<name>`, `FROM` local tags for deps |
 | `images/` | Parse folder → DAG → `buildImages` → `clanker-cleanroom.images.json` |
-| `agents/` | Cursor/Claude run bindings, `createAgent`, `runDocker` |
+| `agents/` | Cursor/Claude bindings, `Agent` class, `runDocker` |
 | `package-root` | Resolves installed package root so stock Dockerfiles come from `node_modules` |
 
 Additional agents add a `*.Dockerfile` (with `# clanker-cleanroom/<name>` + `FROM clanker-cleanroom/base`), a folder under `agents/`, and a registry entry.

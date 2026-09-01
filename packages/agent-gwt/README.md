@@ -51,11 +51,12 @@ export default defineConfig({
 
 Wire the agent and a disposable workspace with `withAspect`, then write Given/When/Then tests. Agent runs are slow — raise the timeout.
 
-Pick the agent with `agent({ name, model })`; nothing else in the test changes:
+Pick the agent with `agent({ name, model })`; `name` is a stock short name or a registry tag (same as `new Agent(name)`):
 
 ```ts
 withAspect(agent({ name: "cursor", model: "auto" })); // Cursor CLI
 withAspect(agent({ name: "claude", model: "sonnet" })); // Claude Code
+withAspect(agent({ name: "cursor:node", model: "auto" })); // toolchain image
 ```
 
 ### Simple prompt
@@ -240,7 +241,7 @@ Docker Desktop applies this to both `docker build` and `docker run`, so nothing 
 Put app Dockerfiles in a folder (first line = tag, `FROM clanker-cleanroom/cursor`):
 
 ```dockerfile
-# my-app/cursor-node
+# cursor:node
 FROM clanker-cleanroom/cursor
 
 USER aur
@@ -259,17 +260,17 @@ export default async function setup() {
 ```
 
 ```ts
-agent({ name: "cursor", variant: "my-app/cursor-node", model: "auto" });
+agent({ name: "cursor:node", model: "auto" });
 ```
 
-`variant` must match a tag registered in `clanker-cleanroom.images.json`. `image` remains a low-level override and is mutually exclusive with `variant`.
+`name` must be a stock agent (`cursor` / `claude`) or a tag recorded in `clanker-cleanroom.images.json` (which also stores which stock binding to use). `image` remains a low-level override of the resolved Docker tag.
 
 ## What `agent` does
 
 Suite-level `withAspect` **before** hook that:
 
-1. Resolves `name` via the agents registry and sets `this.agent`
-2. Sets `this.model` when provided; sets `this.image` from `options.image`, a registered `options.variant`, or the resolved agent
+1. Resolves `name` via `new Agent(name)` and sets `this.agent`
+2. Sets `this.model` when provided; sets `this.image` from `options.image` or the resolved agent
 3. Asserts that Docker image already exists (`docker image inspect`) — it does **not** build. Build once in `globalSetup` with `buildImages()` so parallel test files do not race
 
 Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)`.
@@ -287,7 +288,7 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 | Export                                             | Role                                                                                        |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `AgentContext`                                     | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)                        |
-| `agent(opts)`                                      | `withAspect` before — `{ name: "cursor" \| "claude", model?, variant?, image? }`            |
+| `agent(opts)`                                      | `withAspect` before — `{ name: stock \| registry tag, model?, image? }`                     |
 | `buildImages(opts?)`                               | Suite setup — topo-build a Dockerfile folder (default: stock images)                        |
 | `a_workspace`                                      | Creates `/tmp/.agents-gwt/ws-*` (use in `withAspect` before, or in `given`)                 |
 | `copy_to_workspace(workspace, globs, options?)`    | Copy glob-matched files into `workspace` from the current spec directory (`from`, `base`)   |
