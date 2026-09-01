@@ -129,14 +129,14 @@
     "clanker-cleanroom": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
-    "typescript": "^7.0.2",
+    "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",
     "vitest": "catalog:",
-    "vitest-gwt": "^4.1.4",
-    "wireit": "^0.14.13"
+    "vitest-gwt": "catalog:",
+    "wireit": "catalog:"
   },
   "peerDependencies": {
     "vitest": ">=4.0.0",

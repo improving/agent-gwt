@@ -15,14 +15,15 @@ export type DockerfileEntry = {
 };
 
 const TAG_COMMENT = /^#\s*(\S+)\s*$/;
-const FROM_LINE =
-  /^FROM\s+(?:--platform=\S+\s+)?([^\s]+)(?:\s+AS\s+\S+)?\s*$/i;
+const FROM_LINE = /^FROM\s+(?:--platform=\S+\s+)?([^\s]+)(?:\s+AS\s+\S+)?\s*$/i;
 
 /**
  * Discover `*.Dockerfile` files in `dir` and parse first-line tags + FROM images.
  */
 export function parseDockerfiles(dir: string): DockerfileEntry[] {
-  const names = readdirSync(dir).filter((name) => name.endsWith(".Dockerfile")).sort();
+  const names = readdirSync(dir)
+    .filter((name) => name.endsWith(".Dockerfile"))
+    .sort();
   if (names.length === 0) {
     throw new Error(`No *.Dockerfile files found in ${dir}`);
   }

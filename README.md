@@ -2,10 +2,10 @@
 
 pnpm monorepo:
 
-| Package | Role |
-| --- | --- |
+| Package                                           | Role                                                  |
+| ------------------------------------------------- | ----------------------------------------------------- |
 | [`clanker-cleanroom`](packages/clanker-cleanroom) | Build/run agent Docker images with workspace bindings |
-| [`agent-gwt`](packages/agent-gwt) | GWT step functions for repeatable agent tests |
+| [`agent-gwt`](packages/agent-gwt)                 | GWT step functions for repeatable agent tests         |
 
 ```bash
 pnpm install

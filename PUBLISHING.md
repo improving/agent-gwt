@@ -4,10 +4,10 @@ CI publishes via [npm trusted publishers](https://docs.npmjs.com/trusted-publish
 
 This repo is a pnpm workspace with two publishable packages:
 
-| Package | Path |
-| --- | --- |
+| Package             | Path                                                       |
+| ------------------- | ---------------------------------------------------------- |
 | `clanker-cleanroom` | [`packages/clanker-cleanroom`](packages/clanker-cleanroom) |
-| `agent-gwt` | [`packages/agent-gwt`](packages/agent-gwt) |
+| `agent-gwt`         | [`packages/agent-gwt`](packages/agent-gwt)                 |
 
 **Versions stay in sync** across three `package.json` files:
 
@@ -57,11 +57,11 @@ The release job commits `chore: release vX.Y.Z` to `main` with `GITHUB_TOKEN` (t
 
 ## How it works
 
-| Event                             | What happens |
-| --------------------------------- | --- |
-| PR open/sync/label against `main` | Build → set all three versions → publish **both** packages under `--tag pr-<n>` as `<next>-build.<run>` |
+| Event                             | What happens                                                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| PR open/sync/label against `main` | Build → set all three versions → publish **both** packages under `--tag pr-<n>` as `<next>-build.<run>`                 |
 | PR merged to `main`               | `npm pack` each `@pr-<n>` → rewrite version → `pnpm stage publish` each → bump all three `package.json` files on `main` |
-| Maintainer                        | `pnpm stage approve <id>` (2FA) or Approve on npmjs.com **for each staged package** |
+| Maintainer                        | `pnpm stage approve <id>` (2FA) or Approve on npmjs.com **for each staged package**                                     |
 
 ### Version labels
 

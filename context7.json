@@ -15,12 +15,7 @@
     ".vscode",
     ".github"
   ],
-  "excludeFiles": [
-    "CONTRIBUTING.md",
-    "PUBLISHING.md",
-    "LICENSE",
-    "pnpm-lock.yaml"
-  ],
+  "excludeFiles": ["CONTRIBUTING.md", "PUBLISHING.md", "LICENSE", "pnpm-lock.yaml"],
   "rules": [
     "Use with vitest-gwt: withAspect(agent({ name, model })), withAspect(a_workspace, cleanup_workspace), then Given/When/Then",
     "Build Docker images once in vitest globalSetup with buildImages — agent() only asserts the image exists",

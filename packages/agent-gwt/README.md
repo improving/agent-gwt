@@ -218,11 +218,11 @@ A Claude run whose JSON reports `is_error: true` throws from `executing_the_agen
 
 Stock images ship inside the `clanker-cleanroom` package (resolved from `node_modules`). First-line tag comments + `FROM` deps drive the build order:
 
-| Image                     | Role                                               |
-| ------------------------- | -------------------------------------------------- |
-| `clanker-cleanroom/base`  | Shared Arch Linux base (`yay` + `aur` user)        |
-| `clanker-cleanroom/cursor`| Cursor CLI on top of the base                      |
-| `clanker-cleanroom/claude`| Claude Code CLI on top of the base                 |
+| Image                      | Role                                        |
+| -------------------------- | ------------------------------------------- |
+| `clanker-cleanroom/base`   | Shared Arch Linux base (`yay` + `aur` user) |
+| `clanker-cleanroom/cursor` | Cursor CLI on top of the base               |
+| `clanker-cleanroom/claude` | Claude Code CLI on top of the base          |
 
 `buildImages()` builds the whole stock folder in dependency order and records tags in `clanker-cleanroom.images.json` at the project root (build once, run many).
 
@@ -285,18 +285,18 @@ Pair workspace lifecycle separately: `withAspect(a_workspace, cleanup_workspace)
 
 ## Exports
 
-| Export                                             | Role                                                                                        |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `AgentContext`                                     | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)                        |
-| `agent(opts)`                                      | `withAspect` before — `{ name: stock \| registry tag, model?, image? }`                     |
-| `buildImages(opts?)`                               | Suite setup — topo-build a Dockerfile folder (default: stock images)                        |
-| `a_workspace`                                      | Creates `/tmp/.agents-gwt/ws-*` (use in `withAspect` before, or in `given`)                 |
-| `copy_to_workspace(workspace, globs, options?)`    | Copy glob-matched files into `workspace` from the current spec directory (`from`, `base`)   |
-| `cleanup_workspace`                                | Remove the temp workspace (use in `withAspect` after)                                       |
-| `the_prompt(text)`                                 | Curried `given` — sets `this.prompt`                                                        |
-| `executing_the_agent`                              | `when` — runs `this.agent.run(...)`                                                         |
-| `ClaudeCredentials` / `resolveClaudeCredentials()` | Credential source for the Claude container (token, API key, or file)                        |
-| `AgentRunResult`                                   | Normalized metrics: `durationMs`, `costUsd`, `usage` (null when unavailable)                |
+| Export                                             | Role                                                                                      |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `AgentContext`                                     | Extensible context type (`workspace`, `prompt`, `agent`, `image`, …)                      |
+| `agent(opts)`                                      | `withAspect` before — `{ name: stock \| registry tag, model?, image? }`                   |
+| `buildImages(opts?)`                               | Suite setup — topo-build a Dockerfile folder (default: stock images)                      |
+| `a_workspace`                                      | Creates `/tmp/.agents-gwt/ws-*` (use in `withAspect` before, or in `given`)               |
+| `copy_to_workspace(workspace, globs, options?)`    | Copy glob-matched files into `workspace` from the current spec directory (`from`, `base`) |
+| `cleanup_workspace`                                | Remove the temp workspace (use in `withAspect` after)                                     |
+| `the_prompt(text)`                                 | Curried `given` — sets `this.prompt`                                                      |
+| `executing_the_agent`                              | `when` — runs `this.agent.run(...)`                                                       |
+| `ClaudeCredentials` / `resolveClaudeCredentials()` | Credential source for the Claude container (token, API key, or file)                      |
+| `AgentRunResult`                                   | Normalized metrics: `durationMs`, `costUsd`, `usage` (null when unavailable)              |
 
 ## Isolation notes
 

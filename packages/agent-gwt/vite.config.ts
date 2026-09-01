@@ -12,10 +12,6 @@ export default defineConfig({
   },
   lint: {
     ignorePatterns: ["lib/**", "coverage/**"],
-    options: {
-      typeAware: true,
-      typeCheck: true,
-    },
     overrides: [
       {
         files: ["**/*.spec.ts"],

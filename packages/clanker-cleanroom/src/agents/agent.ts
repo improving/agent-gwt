@@ -77,9 +77,7 @@ function lookupAgent(
   }
 
   if (entry.agent === undefined) {
-    throw new Error(
-      `Image "${name}" is not a runnable agent (no stock agent in its FROM chain).`,
-    );
+    throw new Error(`Image "${name}" is not a runnable agent (no stock agent in its FROM chain).`);
   }
 
   const stockBinding = resolveBinding(entry.agent);

@@ -1,17 +1,20 @@
 import { parseAgentJsonOutput } from "../parse-result.js";
 import type { AgentBinding, AgentRunResult, DockerVolumeMount } from "../types.js";
 import { readTokenCount } from "../types.js";
-import {
-  CLAUDE_CONTAINER_CREDENTIALS_PATH,
-  CLAUDE_IMAGE,
-} from "./constants.js";
+import { CLAUDE_CONTAINER_CREDENTIALS_PATH, CLAUDE_IMAGE } from "./constants.js";
 import { credentialsEnv, resolveClaudeCredentials } from "./credentials.js";
 
 export const claudeBinding: AgentBinding = {
   image: CLAUDE_IMAGE,
   displayName: "Claude",
   command: ({ prompt, model }) => {
-    const claudeArgs = ["claude", "-p", "--output-format", "json", "--dangerously-skip-permissions"];
+    const claudeArgs = [
+      "claude",
+      "-p",
+      "--output-format",
+      "json",
+      "--dangerously-skip-permissions",
+    ];
     if (model !== undefined && model !== "") {
       claudeArgs.push("--model", model);
     }
@@ -52,9 +55,7 @@ function parseClaudeResult(stdout: string): AgentRunResult {
     usage: {
       inputTokens: readTokenCount(usage?.input_tokens ?? usage?.inputTokens),
       outputTokens: readTokenCount(usage?.output_tokens ?? usage?.outputTokens),
-      cacheReadTokens: readTokenCount(
-        usage?.cache_read_input_tokens ?? usage?.cacheReadTokens,
-      ),
+      cacheReadTokens: readTokenCount(usage?.cache_read_input_tokens ?? usage?.cacheReadTokens),
       cacheWriteTokens: readTokenCount(
         usage?.cache_creation_input_tokens ?? usage?.cacheWriteTokens,
       ),

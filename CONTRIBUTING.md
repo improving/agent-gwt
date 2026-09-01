@@ -40,25 +40,25 @@ pnpm run lint
 
 pnpm workspace with two packages:
 
-| Package | Role |
-| --- | --- |
+| Package                      | Role                                                                |
+| ---------------------------- | ------------------------------------------------------------------- |
 | `packages/clanker-cleanroom` | Docker folder-graph builds, image registry JSON, agent run bindings |
-| `packages/agent-gwt` | GWT steps (`given` / `when`) that call into `clanker-cleanroom` |
+| `packages/agent-gwt`         | GWT steps (`given` / `when`) that call into `clanker-cleanroom`     |
 
 ### `clanker-cleanroom`
 
-| Layer | Role |
-| --- | --- |
+| Layer                 | Role                                                                              |
+| --------------------- | --------------------------------------------------------------------------------- |
 | `docker/*.Dockerfile` | Stock images; first line `# clanker-cleanroom/<name>`, `FROM` local tags for deps |
-| `images/` | Parse folder → DAG → `buildImages` → `clanker-cleanroom.images.json` |
-| `agents/` | Cursor/Claude bindings, `Agent` class, `runDocker` |
-| `package-root` | Resolves installed package root so stock Dockerfiles come from `node_modules` |
+| `images/`             | Parse folder → DAG → `buildImages` → `clanker-cleanroom.images.json`              |
+| `agents/`             | Cursor/Claude bindings, `Agent` class, `runDocker`                                |
+| `package-root`        | Resolves installed package root so stock Dockerfiles come from `node_modules`     |
 
 Additional agents add a `*.Dockerfile` (with `# clanker-cleanroom/<name>` + `FROM clanker-cleanroom/base`), a folder under `agents/`, and a registry entry.
 
 ### `agent-gwt`
 
-| Layer | Role |
-| --- | --- |
-| `given` / `when` | Agent-agnostic GWT DSL |
-| Re-exports | Soft-break surface for `buildImages`, agents, docker helpers |
+| Layer            | Role                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| `given` / `when` | Agent-agnostic GWT DSL                                       |
+| Re-exports       | Soft-break surface for `buildImages`, agents, docker helpers |

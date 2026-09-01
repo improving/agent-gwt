@@ -120,10 +120,7 @@ function nested_toolchain_folder(this: Context) {
     join(this.dir, "node.Dockerfile"),
     "# cursor:node\nFROM clanker-cleanroom/cursor\n",
   );
-  writeFileSync(
-    join(this.dir, "node-git.Dockerfile"),
-    "# cursor:node-git\nFROM cursor:node\n",
-  );
+  writeFileSync(join(this.dir, "node-git.Dockerfile"), "# cursor:node-git\nFROM cursor:node\n");
   this.buildTags = [];
 }
 

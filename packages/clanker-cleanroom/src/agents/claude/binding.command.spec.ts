@@ -101,10 +101,7 @@ function building_docker_args_with_model(this: Context) {
   this.args = dockerArgs(this.credentials, { model: "sonnet" });
 }
 
-function dockerArgs(
-  credentials: ClaudeCredentials,
-  options: { model?: string } = {},
-): string[] {
+function dockerArgs(credentials: ClaudeCredentials, options: { model?: string } = {}): string[] {
   const volumes: DockerVolumeMount[] = [
     { host: "/tmp/.agents-gwt/ws-abc", container: CONTAINER_WORKSPACE },
   ];

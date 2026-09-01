@@ -1,8 +1,4 @@
-import {
-  BASE_IMAGE,
-  type StockAgentName,
-  stockAgentNameForImage,
-} from "../agents/stock.js";
+import { BASE_IMAGE, type StockAgentName, stockAgentNameForImage } from "../agents/stock.js";
 import type { DockerfileEntry } from "./parse.js";
 import type { ImageRegistry } from "./registry.js";
 
@@ -57,8 +53,7 @@ export function inferAgent(
 
     const referencesBuiltImage = entry.fromImages.some(
       (from) =>
-        from !== BASE_IMAGE &&
-        (localByTag.has(from) || registry.images[from] !== undefined),
+        from !== BASE_IMAGE && (localByTag.has(from) || registry.images[from] !== undefined),
     );
     if (!referencesBuiltImage) {
       return undefined;

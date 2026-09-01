@@ -102,8 +102,8 @@ const binding: AgentBinding = {
   image: "my-agent:latest",
   displayName: "MyAgent",
   command: ({ prompt, model }) => [/* argv */],
-  prepare: async () => ({ volumes: [/* … */], env: { /* docker CLI env */ } }),
-  parseResult: (stdout) => ({ /* AgentRunResult */ }),
+  prepare: async () => ({ volumes: [/* … */], env: {/* docker CLI env */} }),
+  parseResult: (stdout) => ({/* AgentRunResult */}),
 };
 
 await Agent.fromBinding(binding).run({ workspace, prompt });
@@ -126,20 +126,20 @@ Cursor mounts `~/.config/cursor/auth.json` read-only (`costUsd` is always `null`
 
 ## Exports
 
-| Export | Role |
-| --- | --- |
-| `Agent` | `new Agent(name)` — stock short name or registry tag |
-| `buildImages(opts?)` | Topo-build a Dockerfile folder (default: package stock images) |
-| `cursorAgent` / `claudeAgent` | `new Agent("cursor")` / `new Agent("claude")` |
-| `cursorBinding` / `claudeBinding` | Command, prepare, parseResult for each CLI |
-| `bindingRegistry` | Stock bindings keyed by `"cursor"` \| `"claude"` |
-| `createAgent(binding)` / `Agent.fromBinding` | Wrap a custom binding |
-| `runBoundAgent(binding, options)` | Shared docker orchestration |
-| `AgentRunResult` | Normalized metrics; missing fields are `null` |
-| `resolveImage` / `readRegistry` | Read `clanker-cleanroom.images.json` |
-| `ensureDockerImage` | Assert an image exists (`docker image inspect`) |
-| `buildDockerRunArgs` / `runDocker` | Lower-level docker helpers |
-| `PACKAGE_ROOT` | Absolute path to this package (stock `docker/` lives here) |
+| Export                                       | Role                                                           |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| `Agent`                                      | `new Agent(name)` — stock short name or registry tag           |
+| `buildImages(opts?)`                         | Topo-build a Dockerfile folder (default: package stock images) |
+| `cursorAgent` / `claudeAgent`                | `new Agent("cursor")` / `new Agent("claude")`                  |
+| `cursorBinding` / `claudeBinding`            | Command, prepare, parseResult for each CLI                     |
+| `bindingRegistry`                            | Stock bindings keyed by `"cursor"` \| `"claude"`               |
+| `createAgent(binding)` / `Agent.fromBinding` | Wrap a custom binding                                          |
+| `runBoundAgent(binding, options)`            | Shared docker orchestration                                    |
+| `AgentRunResult`                             | Normalized metrics; missing fields are `null`                  |
+| `resolveImage` / `readRegistry`              | Read `clanker-cleanroom.images.json`                           |
+| `ensureDockerImage`                          | Assert an image exists (`docker image inspect`)                |
+| `buildDockerRunArgs` / `runDocker`           | Lower-level docker helpers                                     |
+| `PACKAGE_ROOT`                               | Absolute path to this package (stock `docker/` lives here)     |
 
 ## Contributing
 
