@@ -148,7 +148,10 @@ jobs:
             tarball="$(ls -1 ${name}-*.tgz | head -n1)"
             mkdir -p staged
             tar -xzf "${tarball}" -C staged
-            jq --arg v "${NEXT}" '.version = $v' staged/package/package.json > staged/package/package.json.tmp
+            jq --arg v "${NEXT}" '
+              .version = $v
+              | if .dependencies["clanker-cleanroom"] then .dependencies["clanker-cleanroom"] = $v else . end
+            ' staged/package/package.json > staged/package/package.json.tmp
             mv staged/package/package.json.tmp staged/package/package.json
             err="$(mktemp)"
             set +e

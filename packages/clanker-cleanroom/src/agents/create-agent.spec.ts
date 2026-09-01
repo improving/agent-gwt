@@ -121,5 +121,5 @@ function ensure_docker_image_used_bound_image() {
 }
 
 function build_images_was_called() {
-  expect(buildImagesModule.buildImages).toHaveBeenCalledWith();
+  expect(buildImagesModule.buildImages).toHaveBeenCalledWith({});
 }

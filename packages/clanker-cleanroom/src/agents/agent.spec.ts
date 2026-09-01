@@ -82,6 +82,19 @@ describe("Agent", () => {
       error_mentions_not_runnable,
     },
   });
+
+  test("buildImage forwards packageRoot from the constructor", {
+    given: {
+      package_root_with_toolchain,
+      stub_build_images,
+    },
+    when: {
+      constructing_toolchain_and_building,
+    },
+    then: {
+      build_images_used_package_root,
+    },
+  });
 });
 
 function empty_package_root(this: Context) {
@@ -116,6 +129,10 @@ function package_root_with_base(this: Context) {
   );
 }
 
+function stub_build_images() {
+  vi.spyOn(buildImagesModule, "buildImages").mockResolvedValue();
+}
+
 function stub_run_bound(this: Context) {
   vi.spyOn(ensureImageModule, "ensureDockerImage").mockResolvedValue();
   vi.spyOn(buildImagesModule, "buildImages").mockResolvedValue();
@@ -137,6 +154,11 @@ function constructing_cursor(this: Context) {
 
 function constructing_toolchain(this: Context) {
   this.agent = new Agent("cursor:node", { packageRoot: this.packageRoot });
+}
+
+async function constructing_toolchain_and_building(this: Context) {
+  constructing_toolchain.call(this);
+  await this.agent!.buildImage();
 }
 
 async function constructing_and_running_cursor(this: Context) {
@@ -188,4 +210,10 @@ function error_mentions_unknown(this: Context) {
 
 function error_mentions_not_runnable(this: Context) {
   expect(this.error?.message).toContain("not a runnable agent");
+}
+
+function build_images_used_package_root(this: Context) {
+  expect(buildImagesModule.buildImages).toHaveBeenCalledWith({
+    packageRoot: this.packageRoot,
+  });
 }

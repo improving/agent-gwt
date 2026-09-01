@@ -1,4 +1,4 @@
-import { buildImages } from "../images/build.js";
+import { buildImages, type BuildImagesOptions } from "../images/build.js";
 import { readRegistry, type RegistryOptions } from "../images/registry.js";
 import { resolveBinding } from "./binding-registry.js";
 import { ensureDockerImage } from "./ensure-image.js";
@@ -18,6 +18,7 @@ export class Agent {
   readonly name: string;
   readonly image: string;
   private readonly binding: AgentBinding;
+  private readonly registryOptions: RegistryOptions;
 
   constructor(name: string, options?: RegistryOptions);
   constructor(fromBinding: FromBinding);
@@ -27,6 +28,7 @@ export class Agent {
       this.name = binding.image;
       this.image = binding.image;
       this.binding = binding;
+      this.registryOptions = {};
       return;
     }
 
@@ -34,6 +36,7 @@ export class Agent {
     this.name = nameOrBinding;
     this.image = resolved.image;
     this.binding = resolved.binding;
+    this.registryOptions = options;
   }
 
   /** Wrap a custom binding that is not registered by name. */
@@ -45,8 +48,8 @@ export class Agent {
     await ensureDockerImage(this.image);
   }
 
-  async buildImage(): Promise<void> {
-    await buildImages();
+  async buildImage(options?: BuildImagesOptions): Promise<void> {
+    await buildImages({ ...this.registryOptions, ...options });
   }
 
   run(options: RunAgentOptions): Promise<AgentRunResult> {

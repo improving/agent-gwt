@@ -21,7 +21,7 @@
     "Build Docker images once in vitest globalSetup with buildImages — agent() only asserts the image exists",
     "Raise Vitest timeouts for agent runs (often 60s or more)",
     "Require Docker plus host agent login: Cursor ~/.config/cursor/auth.json, or Claude CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY",
-    "Prefer agent({ name, model, variant? }) and buildImages({ dir }) for toolchains over raw image overrides",
+    "Prefer agent({ name, model }) with registry tag names (e.g. cursor:node) and buildImages({ dir }) for toolchains over raw image overrides",
     "Seed workspace files in given before executing_the_agent; use copy_to_workspace for fixture trees"
   ]
 }
