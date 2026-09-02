@@ -1,6 +1,6 @@
 {
   "name": "clanker-cleanroom",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Build and run agent Docker images with workspace bindings",
   "keywords": [
     "agent",
