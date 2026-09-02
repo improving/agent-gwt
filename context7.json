@@ -4,10 +4,10 @@
   "description": "GWT step functions for repeatable agent tests with Cursor and Claude Code via vitest-gwt",
   "folders": [],
   "excludeFolders": [
-    "src",
-    "e2e",
-    "lib",
-    "docker",
+    "packages/*/src",
+    "packages/*/e2e",
+    "packages/*/lib",
+    "packages/*/docker",
     "node_modules",
     ".wireit",
     ".codegraph",
@@ -15,18 +15,13 @@
     ".vscode",
     ".github"
   ],
-  "excludeFiles": [
-    "CONTRIBUTING.md",
-    "PUBLISHING.md",
-    "LICENSE",
-    "pnpm-lock.yaml"
-  ],
+  "excludeFiles": ["CONTRIBUTING.md", "PUBLISHING.md", "LICENSE", "pnpm-lock.yaml"],
   "rules": [
     "Use with vitest-gwt: withAspect(agent({ name, model })), withAspect(a_workspace, cleanup_workspace), then Given/When/Then",
-    "Build Docker images once in vitest globalSetup with buildAgentImage — agent() only asserts the image exists",
+    "Build Docker images once in vitest globalSetup with buildImages — agent() only asserts the image exists",
     "Raise Vitest timeouts for agent runs (often 60s or more)",
     "Require Docker plus host agent login: Cursor ~/.config/cursor/auth.json, or Claude CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY",
-    "Prefer agent({ name, model, variant? }) and buildToolchainImage for toolchains over raw image overrides",
+    "Prefer agent({ name, model }) with registry tag names (e.g. cursor:node) and buildImages({ dir }) for toolchains over raw image overrides",
     "Seed workspace files in given before executing_the_agent; use copy_to_workspace for fixture trees"
   ]
 }

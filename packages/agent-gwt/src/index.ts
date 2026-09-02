@@ -1,0 +1,61 @@
+export type {
+  AgentContext,
+  AgentRunResult,
+  AgentOptions,
+  AgentName,
+  ConfigureAgentOptions,
+} from "./types.js";
+
+export { a_workspace, cleanup_workspace, AGENTS_GWT_TMP_ROOT } from "./given/a_workspace.js";
+export { copy_to_workspace, type CopyToWorkspaceOptions } from "./given/copy_to_workspace.js";
+export { the_prompt } from "./given/the_prompt.js";
+export { executing_the_agent } from "./when/executing_the_agent.js";
+export { agent } from "./given/agent.js";
+
+export {
+  Agent,
+  CONTAINER_AUTH_PATH,
+  CURSOR_IMAGE,
+  defaultHostAuthFile,
+  cursorAgent,
+  cursorBinding,
+  CLAUDE_API_KEY_ENV,
+  CLAUDE_CONTAINER_CREDENTIALS_PATH,
+  CLAUDE_IMAGE,
+  CLAUDE_OAUTH_TOKEN_ENV,
+  defaultClaudeHostCredentialsFile,
+  resolveClaudeCredentials,
+  claudeAgent,
+  claudeBinding,
+  type ClaudeCredentials,
+  bindingRegistry,
+  createAgent,
+  type CreateAgentBindings,
+  type AgentBinding,
+  type TokenUsage,
+  type StockAgentName,
+  buildImages,
+  resetBuildMemo,
+  type BuildImagesOptions,
+  resolveImage,
+  readRegistry,
+  resetRegistry,
+  upsertRegistryEntry,
+  BASE_IMAGE,
+  CONTAINER_HOME,
+  CONTAINER_WORKSPACE,
+  PACKAGE_ROOT,
+  ensureDockerImage,
+  parseAgentJsonOutput,
+  buildDockerRunArgs,
+  invokeDocker,
+  runDocker,
+  runBoundAgent,
+  type DockerRunner,
+  type DockerRunOptions,
+  type DockerRunResult,
+  type BuildDockerRunArgsOptions,
+  type DockerVolumeMount,
+  type RunAgentOptions,
+  type AgentRunBindingsOptions,
+} from "clanker-cleanroom";

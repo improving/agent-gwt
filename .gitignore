@@ -5,3 +5,4 @@ coverage/
 .DS_Store
 .wireit/
 .codegraph/
+clanker-cleanroom.images.json

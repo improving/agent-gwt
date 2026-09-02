@@ -1,36 +1,7 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  pack: {
-    entry: "src/index.ts",
-    format: ["esm", "cjs"],
-    dts: true,
-    sourcemap: true,
-    outDir: "lib",
-    platform: "node",
-    root: "src",
-  },
-  lint: {
-    ignorePatterns: ["lib/**", "coverage/**"],
-    options: {
-      typeAware: true,
-      typeCheck: true,
-    },
-    overrides: [
-      {
-        files: ["**/*.spec.ts"],
-        rules: {
-          "unicorn/no-thenable": "off",
-        },
-      },
-    ],
-  },
   test: {
-    include: ["src/**/*.spec.ts"],
-    coverage: {
-      provider: "v8",
-      include: ["src/**/*.ts"],
-      exclude: ["src/**/*.spec.ts"],
-    },
+    projects: ["packages/agent-gwt", "packages/clanker-cleanroom"],
   },
 });

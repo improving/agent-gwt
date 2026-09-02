@@ -1,135 +1,18 @@
 {
-  "name": "agent-gwt",
+  "name": "agent-gwt-workspace",
   "version": "0.2.3",
-  "description": "GWT step functions for repeatable agent tests",
-  "keywords": [
-    "agent",
-    "claude",
-    "claude-code",
-    "cursor",
-    "gwt",
-    "testing",
-    "vitest",
-    "vitest-gwt"
-  ],
-  "homepage": "https://github.com/improving/agent-gwt#readme",
-  "bugs": {
-    "url": "https://github.com/improving/agent-gwt/issues"
-  },
-  "license": "MIT",
-  "author": "Eric Siebeneich <eric.siebeneich@improving.com> (https://github.com/improving)",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/improving/agent-gwt.git"
-  },
-  "files": [
-    "lib",
-    "src",
-    "docker",
-    "!**/*.spec.ts"
-  ],
+  "private": true,
   "type": "module",
-  "main": "./lib/index.cjs",
-  "module": "./lib/index.mjs",
-  "types": "./lib/index.d.cts",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./lib/index.d.mts",
-        "default": "./lib/index.mjs"
-      },
-      "require": {
-        "types": "./lib/index.d.cts",
-        "default": "./lib/index.cjs"
-      }
-    },
-    "./package.json": "./package.json"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "build": "wireit",
-    "test": "wireit",
-    "test:e2e": "wireit",
-    "lint": "wireit",
-    "test:coverage": "wireit",
-    "prepublishOnly": "wireit"
-  },
-  "wireit": {
-    "build": {
-      "command": "vp pack",
-      "files": [
-        "src/**/*.ts",
-        "tsconfig.json",
-        "vite.config.ts",
-        "!src/**/*.spec.ts"
-      ],
-      "output": [
-        "lib/**"
-      ]
-    },
-    "lint": {
-      "command": "vp lint src",
-      "files": [
-        "src/**/*.ts",
-        "tsconfig.json",
-        "vite.config.ts"
-      ]
-    },
-    "test": {
-      "command": "vitest run",
-      "files": [
-        "src/**/*.ts",
-        "vite.config.ts"
-      ]
-    },
-    "test:e2e": {
-      "command": "vitest run --config e2e/vitest.e2e.config.ts",
-      "files": [
-        "src/**/*.ts",
-        "e2e/**/*.ts"
-      ]
-    },
-    "test:coverage": {
-      "command": "vitest run --coverage",
-      "files": [
-        "src/**/*.ts",
-        "vite.config.ts"
-      ],
-      "output": [
-        "coverage/**"
-      ]
-    },
-    "prepublishOnly": {
-      "dependencies": [
-        "lint",
-        "test",
-        "build"
-      ]
-    }
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "test:coverage": "pnpm -r run test:coverage",
+    "test:e2e": "pnpm --filter agent-gwt run test:e2e"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "@vitest/coverage-v8": "catalog:",
-    "typescript": "^7.0.2",
-    "vite": "catalog:",
     "vite-plus": "catalog:",
-    "vitest": "catalog:",
-    "vitest-gwt": "^4.1.4",
-    "wireit": "^0.14.13"
-  },
-  "peerDependencies": {
-    "vitest": ">=4.0.0",
-    "vitest-gwt": ">=4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "vitest": {
-      "optional": true
-    },
-    "vitest-gwt": {
-      "optional": true
-    }
+    "vitest": "catalog:"
   },
   "packageManager": "pnpm@11.22.0"
 }

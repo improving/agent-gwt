@@ -1,8 +1,15 @@
+packages:
+  - "packages/*"
+
 catalog:
+  "@types/node": ^26.2.0
+  "@vitest/coverage-v8": 4.1.11
+  typescript: ^7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@0.3.0
   vite-plus: 0.3.0
   vitest: 4.1.11
-  "@vitest/coverage-v8": 4.1.11
+  vitest-gwt: 4.1.4
+  wireit: ^0.14.13
 minimumReleaseAgeExclude:
   - vitest-gwt@4.1.4
 overrides:
