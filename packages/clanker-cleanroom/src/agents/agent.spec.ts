@@ -19,6 +19,8 @@ type Context = {
   agent?: Agent;
   result?: AgentRunResult;
   error?: Error;
+  inputAfterRuns?: string;
+  outputListed?: string[];
 };
 
 afterEach(() => {
@@ -56,6 +58,20 @@ describe("Agent", () => {
     },
     then: {
       run_bound_used_cursor_image,
+      run_bound_received_io_volumes,
+    },
+  });
+
+  test("clears output between runs but keeps input", {
+    given: {
+      stub_run_bound,
+    },
+    when: {
+      writing_io_and_running_twice,
+    },
+    then: {
+      input_still_present,
+      output_cleared_before_second_run,
     },
   });
 
@@ -166,6 +182,17 @@ async function constructing_and_running_cursor(this: Context) {
   this.result = await this.agent.run({ workspace: "/tmp/ws", prompt: "hi" });
 }
 
+async function writing_io_and_running_twice(this: Context) {
+  this.agent = new Agent("cursor");
+  await this.agent.input.write("spec.txt", "keep-me");
+  await this.agent.output.write("stale.txt", "gone");
+  await this.agent.run({ workspace: "/tmp/ws", prompt: "first" });
+  await this.agent.output.write("produced.txt", "from-agent");
+  await this.agent.run({ workspace: "/tmp/ws", prompt: "second" });
+  this.inputAfterRuns = await this.agent.input.readText("spec.txt");
+  this.outputListed = await this.agent.output.list();
+}
+
 function constructing_unknown_catching(this: Context) {
   try {
     this.agent = new Agent("missing", { packageRoot: this.packageRoot });
@@ -202,6 +229,26 @@ function run_bound_used_cursor_image(this: Context) {
     }),
   );
   expect(this.result?.durationMs).toBe(10);
+}
+
+function run_bound_received_io_volumes(this: Context) {
+  expect(runBoundModule.runBoundAgent).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({
+      ioVolumes: [
+        expect.objectContaining({ container: "/agent/input", mode: "ro" }),
+        expect.objectContaining({ container: "/agent/output" }),
+      ],
+    }),
+  );
+}
+
+function input_still_present(this: Context) {
+  expect(this.inputAfterRuns).toBe("keep-me");
+}
+
+function output_cleared_before_second_run(this: Context) {
+  expect(this.outputListed).toEqual([]);
 }
 
 function error_mentions_unknown(this: Context) {

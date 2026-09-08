@@ -28,6 +28,19 @@ describe("runBoundAgent", () => {
     },
   });
 
+  test("mounts io volumes after workspace and before credentials", {
+    given: {
+      stub_binding,
+      docker_succeeds,
+    },
+    when: {
+      running_bound_agent_with_io,
+    },
+    then: {
+      docker_received_io_mounts_in_order,
+    },
+  });
+
   test("throws agentRunError when docker exits non-zero", {
     given: {
       stub_binding,
@@ -88,6 +101,24 @@ async function running_bound_agent(this: Context) {
   );
 }
 
+async function running_bound_agent_with_io(this: Context) {
+  this.result = await runBoundAgent(
+    this.binding,
+    {
+      workspace: "/tmp/ws",
+      prompt: "hi",
+      image: "test/image",
+      uid: 1,
+      gid: 1,
+      ioVolumes: [
+        { host: "/tmp/in", container: "/agent/input", mode: "ro" },
+        { host: "/tmp/out", container: "/agent/output" },
+      ],
+    },
+    this.dockerRunner,
+  );
+}
+
 async function running_bound_agent_catching(this: Context) {
   try {
     await running_bound_agent.call(this);
@@ -101,6 +132,19 @@ function docker_received_workspace_mount(this: Context) {
   expect(this.dockerArgs).toContain("/tmp/secret:/secret:ro");
   expect(this.dockerEnv).toEqual({ SECRET: "value" });
   expect(this.dockerArgs).toContain("SECRET");
+}
+
+function docker_received_io_mounts_in_order(this: Context) {
+  const args = this.dockerArgs ?? [];
+  const workspaceIndex = args.indexOf("/tmp/ws:/workspace");
+  const inputIndex = args.indexOf("/tmp/in:/agent/input:ro");
+  const outputIndex = args.indexOf("/tmp/out:/agent/output");
+  const secretIndex = args.indexOf("/tmp/secret:/secret:ro");
+
+  expect(workspaceIndex).toBeGreaterThan(-1);
+  expect(inputIndex).toBeGreaterThan(workspaceIndex);
+  expect(outputIndex).toBeGreaterThan(inputIndex);
+  expect(secretIndex).toBeGreaterThan(outputIndex);
 }
 
 function result_from_parse(this: Context) {

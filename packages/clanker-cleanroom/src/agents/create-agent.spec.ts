@@ -107,11 +107,15 @@ function run_bound_was_called(this: Context) {
       image: "clanker-cleanroom/cursor",
       displayName: "Cursor",
     }),
-    {
+    expect.objectContaining({
       workspace: "/tmp/ws",
       prompt: "hello",
       image: "clanker-cleanroom/cursor",
-    },
+      ioVolumes: [
+        expect.objectContaining({ container: "/agent/input", mode: "ro" }),
+        expect.objectContaining({ container: "/agent/output" }),
+      ],
+    }),
   );
   expect(this.result?.durationMs).toBe(1);
 }

@@ -1,5 +1,7 @@
 import { buildImages, type BuildImagesOptions } from "../images/build.js";
 import { readRegistry, type RegistryOptions } from "../images/registry.js";
+import { AgentFs } from "./agent-fs.js";
+import { CONTAINER_INPUT, CONTAINER_OUTPUT } from "./base/constants.js";
 import { resolveBinding } from "./binding-registry.js";
 import { ensureDockerImage } from "./ensure-image.js";
 import { runBoundAgent } from "./run-bound.js";
@@ -17,12 +19,19 @@ type FromBinding = {
 export class Agent {
   readonly name: string;
   readonly image: string;
+  /** Host-staged files mounted read-only at `/agent/input`. */
+  readonly input: AgentFs;
+  /** Host-staged files mounted read-write at `/agent/output`. */
+  readonly output: AgentFs;
   private readonly binding: AgentBinding;
   private readonly registryOptions: RegistryOptions;
 
   constructor(name: string, options?: RegistryOptions);
   constructor(fromBinding: FromBinding);
   constructor(nameOrBinding: string | FromBinding, options: RegistryOptions = {}) {
+    this.input = new AgentFs(CONTAINER_INPUT);
+    this.output = new AgentFs(CONTAINER_OUTPUT);
+
     if (typeof nameOrBinding !== "string") {
       const binding = nameOrBinding.__fromBinding;
       this.name = binding.image;
@@ -52,12 +61,20 @@ export class Agent {
     await buildImages({ ...this.registryOptions, ...options });
   }
 
-  run(options: RunAgentOptions): Promise<AgentRunResult> {
+  async run(options: RunAgentOptions): Promise<AgentRunResult> {
+    const inputHost = await this.input.ensure();
+    const outputHost = await this.output.ensure();
+    await this.output.clear();
+
     return runBoundAgent(this.binding, {
       workspace: options.workspace,
       prompt: options.prompt,
       image: options.image ?? this.image,
       ...(options.model !== undefined ? { model: options.model } : {}),
+      ioVolumes: [
+        { host: inputHost, container: this.input.containerPath, mode: "ro" },
+        { host: outputHost, container: this.output.containerPath },
+      ],
     });
   }
 }
