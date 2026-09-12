@@ -112,9 +112,30 @@ await Agent.fromBinding(binding).run({ workspace, prompt });
 ## What a run does
 
 1. `prepare` resolves host credentials → volume mounts and/or docker-CLI env (secrets never appear on argv when using env passthrough)
-2. Mounts the workspace at `/workspace` and runs as your host uid/gid
+2. Mounts the workspace at `/workspace`, staged input at `/agent/input` (read-only), and output at `/agent/output`, then runs as your host uid/gid
 3. Invokes the agent CLI with JSON output
 4. Returns `AgentRunResult` metrics (`durationMs`, `costUsd`, `usage`) — dialog text is discarded
+
+### Input / output mounts
+
+Each `Agent` has `input` and `output` trees (host temp dirs) bind-mounted on every run:
+
+```ts
+const agent = new Agent("cursor");
+
+await agent.input.write("spec.json", JSON.stringify({ name: "demo" }));
+
+await agent.run({
+  workspace: "/tmp/ws",
+  prompt: "Read /agent/input/spec.json and write /agent/output/result.txt",
+});
+
+const result = await agent.output.readText("result.txt");
+```
+
+- **Input** is mounted read-only at `/agent/input` and persists across runs until `agent.input.clear()`
+- **Output** is mounted read-write at `/agent/output` and is cleared at the start of each `run()`
+- Paths must be relative (no `..`); `write` accepts `string | Uint8Array`
 
 Cursor mounts `~/.config/cursor/auth.json` read-only (`costUsd` is always `null` today). Claude forwards `CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` by env **name**, or mounts `.credentials.json` read-only.
 
@@ -122,13 +143,15 @@ Cursor mounts `~/.config/cursor/auth.json` read-only (`costUsd` is always `null`
 
 - **Credentials only** — no host `~/.cursor` / `~/.claude` settings, MCP, skills, or projects
 - **Non-root** — container process uses host uid/gid so workspace files are owned by you
-- **Workspace is the only writable host path**
+- **Writable host mounts** — workspace (`/workspace`) and output (`/agent/output`); input is read-only
 
 ## Exports
 
 | Export                                       | Role                                                           |
 | -------------------------------------------- | -------------------------------------------------------------- |
 | `Agent`                                      | `new Agent(name)` — stock short name or registry tag           |
+| `AgentFs` / `agent.input` / `agent.output`   | Stage files for `/agent/input` (ro) and `/agent/output`        |
+| `CONTAINER_INPUT` / `CONTAINER_OUTPUT`       | Container mount paths for staged I/O                           |
 | `buildImages(opts?)`                         | Topo-build a Dockerfile folder (default: package stock images) |
 | `cursorAgent` / `claudeAgent`                | `new Agent("cursor")` / `new Agent("claude")`                  |
 | `cursorBinding` / `claudeBinding`            | Command, prepare, parseResult for each CLI                     |

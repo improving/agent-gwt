@@ -84,7 +84,7 @@ export type AgentBinding = {
   command: (opts: { prompt: string; model?: string }) => string[];
   /**
    * Resolve host-side secrets into mounts + docker-CLI env.
-   * Workspace → CONTAINER_WORKSPACE is always added by the shared runner.
+   * Workspace → CONTAINER_WORKSPACE and I/O mounts are always added by the shared runner.
    */
   prepare: (opts: { workspace: string }) => Promise<AgentPrepareResult>;
   /** Map stdout → normalized metrics (throw on agent-reported failure). */

@@ -21,6 +21,7 @@ export { buildDockerRunArgs, invokeDocker, runDocker } from "./agents/docker.js"
 export { ensureDockerImage } from "./agents/ensure-image.js";
 export { parseAgentJsonOutput } from "./agents/parse-result.js";
 export { Agent } from "./agents/agent.js";
+export { AgentFs, type AgentFsOptions } from "./agents/agent-fs.js";
 export { createAgent, type CreateAgentBindings } from "./agents/create-agent.js";
 export { bindingRegistry, type AgentName, type StockAgentName } from "./agents/registry.js";
 export { isStockAgentName, stockAgentNameForImage, STOCK_AGENT_IMAGES } from "./agents/stock.js";
@@ -47,7 +48,13 @@ export {
   type ClaudeCredentials,
 } from "./agents/claude/index.js";
 
-export { BASE_IMAGE, CONTAINER_HOME, CONTAINER_WORKSPACE } from "./agents/base/index.js";
+export {
+  BASE_IMAGE,
+  CONTAINER_HOME,
+  CONTAINER_INPUT,
+  CONTAINER_OUTPUT,
+  CONTAINER_WORKSPACE,
+} from "./agents/base/index.js";
 
 export { PACKAGE_ROOT } from "./package-root.js";
 

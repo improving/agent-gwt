@@ -12,6 +12,8 @@ import type {
 export type RunBoundAgentOptions = AgentRunBindingsOptions & {
   uid?: number;
   gid?: number;
+  /** Staged `/agent/input` (ro) and `/agent/output` mounts; inserted after workspace. */
+  ioVolumes?: readonly DockerVolumeMount[];
 };
 
 export async function runBoundAgent(
@@ -25,6 +27,7 @@ export async function runBoundAgent(
 
   const volumes: DockerVolumeMount[] = [
     { host: options.workspace, container: CONTAINER_WORKSPACE },
+    ...(options.ioVolumes ?? []),
     ...(prepared.volumes ?? []),
   ];
 
