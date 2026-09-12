@@ -5,8 +5,8 @@ import {
   CLAUDE_API_KEY_ENV,
   CLAUDE_OAUTH_TOKEN_ENV,
   defaultClaudeHostCredentialsFile,
-  defaultHostAuthFile,
-} from "../src/index.js";
+} from "@clanker-cleanroom/claude";
+import { defaultHostAuthFile } from "@clanker-cleanroom/cursor";
 
 /** Same sources as resolveClaudeCredentials(), as a sync yes/no for skip decisions. */
 export function hasClaudeCredential(env: NodeJS.ProcessEnv = process.env): boolean {

@@ -1,4 +1,4 @@
-import { CONTAINER_HOME } from "../base/constants.js";
+import { CONTAINER_HOME } from "clanker-cleanroom";
 
 export const CLAUDE_IMAGE = "clanker-cleanroom/claude";
 export const CLAUDE_CONTAINER_CREDENTIALS_PATH = `${CONTAINER_HOME}/.claude/.credentials.json`;

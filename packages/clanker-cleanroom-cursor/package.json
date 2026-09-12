@@ -1,10 +1,11 @@
 {
-  "name": "clanker-cleanroom",
+  "name": "@clanker-cleanroom/cursor",
   "version": "0.2.5",
-  "description": "Build and run agent Docker images with workspace bindings",
+  "description": "Cursor agent binding for clanker-cleanroom",
   "keywords": [
     "agent",
     "cleanroom",
+    "cursor",
     "docker"
   ],
   "homepage": "https://github.com/improving/agent-gwt#readme",
@@ -16,7 +17,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/improving/agent-gwt.git",
-    "directory": "packages/clanker-cleanroom"
+    "directory": "packages/clanker-cleanroom-cursor"
   },
   "files": [
     "lib",
@@ -37,6 +38,16 @@
       "require": {
         "types": "./lib/index.d.cts",
         "default": "./lib/index.cjs"
+      }
+    },
+    "./register": {
+      "import": {
+        "types": "./lib/register.d.mts",
+        "default": "./lib/register.mjs"
+      },
+      "require": {
+        "types": "./lib/register.d.cts",
+        "default": "./lib/register.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -62,6 +73,9 @@
       ],
       "output": [
         "lib/**"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
       ]
     },
     "lint": {
@@ -70,6 +84,9 @@
         "src/**/*.ts",
         "tsconfig.json",
         "vite.config.ts"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
       ]
     },
     "test": {
@@ -77,6 +94,9 @@
       "files": [
         "src/**/*.ts",
         "vite.config.ts"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
       ]
     },
     "test:coverage": {
@@ -87,6 +107,9 @@
       ],
       "output": [
         "coverage/**"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
       ]
     },
     "prepublishOnly": {
@@ -96,6 +119,9 @@
         "build"
       ]
     }
+  },
+  "dependencies": {
+    "clanker-cleanroom": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -107,8 +133,5 @@
     "vitest-gwt": "catalog:",
     "wireit": "catalog:"
   },
-  "packageManager": "pnpm@11.22.0",
-  "dependencies": {
-    "js-jsonl": "1.1.1"
-  }
+  "packageManager": "pnpm@11.22.0"
 }

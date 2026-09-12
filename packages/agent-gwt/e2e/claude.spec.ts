@@ -1,3 +1,5 @@
+import "@clanker-cleanroom/claude/register";
+
 import { describe, expect } from "vitest";
 import test, { withAspect } from "vitest-gwt";
 import {

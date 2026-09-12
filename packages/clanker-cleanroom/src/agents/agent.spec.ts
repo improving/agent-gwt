@@ -6,13 +6,15 @@ import { afterEach, describe, expect, vi } from "vitest";
 import test from "vitest-gwt";
 
 import { Agent } from "./agent.js";
+import { registerBinding, resetBindings } from "./binding-registry.js";
 import * as ensureImageModule from "./ensure-image.js";
 import * as buildImagesModule from "../images/build.js";
 import { resetRegistry, upsertRegistryEntry } from "../images/registry.js";
 import * as runBoundModule from "./run-bound.js";
-import { CURSOR_IMAGE } from "./cursor/constants.js";
 import { BASE_IMAGE } from "./base/constants.js";
-import type { AgentRunResult } from "./types.js";
+import type { AgentBinding, AgentRunResult } from "./types.js";
+
+const STOCK_IMAGE = "test/stock-agent";
 
 type Context = {
   packageRoot: string;
@@ -25,20 +27,25 @@ type Context = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  resetBindings();
 });
 
 describe("Agent", () => {
-  test("resolves stock cursor by short name", {
+  test("resolves a registered stock agent by short name", {
+    given: {
+      registered_stock_binding,
+    },
     when: {
-      constructing_cursor,
+      constructing_stock,
     },
     then: {
-      name_and_image_are_cursor,
+      name_and_image_are_stock,
     },
   });
 
   test("resolves a registry toolchain tag using stored agent", {
     given: {
+      registered_stock_binding,
       package_root_with_toolchain,
     },
     when: {
@@ -51,19 +58,21 @@ describe("Agent", () => {
 
   test("runs through runBoundAgent with the resolved image", {
     given: {
+      registered_stock_binding,
       stub_run_bound,
     },
     when: {
-      constructing_and_running_cursor,
+      constructing_and_running_stock,
     },
     then: {
-      run_bound_used_cursor_image,
+      run_bound_used_stock_image,
       run_bound_received_io_volumes,
     },
   });
 
   test("clears output between runs but keeps input", {
     given: {
+      registered_stock_binding,
       stub_run_bound,
     },
     when: {
@@ -101,6 +110,7 @@ describe("Agent", () => {
 
   test("buildImage forwards packageRoot from the constructor", {
     given: {
+      registered_stock_binding,
       package_root_with_toolchain,
       stub_build_images,
     },
@@ -113,6 +123,31 @@ describe("Agent", () => {
   });
 });
 
+function stockBinding(): AgentBinding {
+  return {
+    image: STOCK_IMAGE,
+    displayName: "Stock",
+    trajectoryKind: "stock",
+    adaptEvents: () => [],
+    command: () => ["agent"],
+    prepare: async () => ({}),
+    parseResult: () => ({
+      durationMs: null,
+      costUsd: null,
+      usage: {
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+      },
+    }),
+  };
+}
+
+function registered_stock_binding() {
+  registerBinding("stock", stockBinding());
+}
+
 function empty_package_root(this: Context) {
   this.packageRoot = mkdtempSync(join(tmpdir(), "clanker-agent-"));
   resetRegistry({ packageRoot: this.packageRoot });
@@ -121,12 +156,12 @@ function empty_package_root(this: Context) {
 function package_root_with_toolchain(this: Context) {
   empty_package_root.call(this);
   upsertRegistryEntry(
-    "cursor:node",
+    "stock:node",
     {
-      image: "cursor:node",
+      image: "stock:node",
       dockerfile: "node.Dockerfile",
       builtAt: new Date().toISOString(),
-      agent: "cursor",
+      agent: "stock",
     },
     { packageRoot: this.packageRoot },
   );
@@ -164,12 +199,12 @@ function stub_run_bound(this: Context) {
   });
 }
 
-function constructing_cursor(this: Context) {
-  this.agent = new Agent("cursor");
+function constructing_stock(this: Context) {
+  this.agent = new Agent("stock");
 }
 
 function constructing_toolchain(this: Context) {
-  this.agent = new Agent("cursor:node", { packageRoot: this.packageRoot });
+  this.agent = new Agent("stock:node", { packageRoot: this.packageRoot });
 }
 
 async function constructing_toolchain_and_building(this: Context) {
@@ -177,13 +212,13 @@ async function constructing_toolchain_and_building(this: Context) {
   await this.agent!.buildImage();
 }
 
-async function constructing_and_running_cursor(this: Context) {
-  this.agent = new Agent("cursor");
+async function constructing_and_running_stock(this: Context) {
+  this.agent = new Agent("stock");
   this.result = await this.agent.run({ workspace: "/tmp/ws", prompt: "hi" });
 }
 
 async function writing_io_and_running_twice(this: Context) {
-  this.agent = new Agent("cursor");
+  this.agent = new Agent("stock");
   await this.agent.input.write("spec.txt", "keep-me");
   await this.agent.output.write("stale.txt", "gone");
   await this.agent.run({ workspace: "/tmp/ws", prompt: "first" });
@@ -209,23 +244,23 @@ function constructing_base_catching(this: Context) {
   }
 }
 
-function name_and_image_are_cursor(this: Context) {
-  expect(this.agent?.name).toBe("cursor");
-  expect(this.agent?.image).toBe(CURSOR_IMAGE);
+function name_and_image_are_stock(this: Context) {
+  expect(this.agent?.name).toBe("stock");
+  expect(this.agent?.image).toBe(STOCK_IMAGE);
 }
 
 function name_and_image_are_toolchain(this: Context) {
-  expect(this.agent?.name).toBe("cursor:node");
-  expect(this.agent?.image).toBe("cursor:node");
+  expect(this.agent?.name).toBe("stock:node");
+  expect(this.agent?.image).toBe("stock:node");
 }
 
-function run_bound_used_cursor_image(this: Context) {
+function run_bound_used_stock_image(this: Context) {
   expect(runBoundModule.runBoundAgent).toHaveBeenCalledWith(
-    expect.objectContaining({ image: CURSOR_IMAGE }),
+    expect.objectContaining({ image: STOCK_IMAGE }),
     expect.objectContaining({
       workspace: "/tmp/ws",
       prompt: "hi",
-      image: CURSOR_IMAGE,
+      image: STOCK_IMAGE,
     }),
   );
   expect(this.result?.durationMs).toBe(10);

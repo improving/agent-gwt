@@ -23,30 +23,36 @@ export { parseAgentJsonOutput } from "./agents/parse-result.js";
 export { Agent } from "./agents/agent.js";
 export { AgentFs, type AgentFsOptions } from "./agents/agent-fs.js";
 export { createAgent, type CreateAgentBindings } from "./agents/create-agent.js";
-export { bindingRegistry, type AgentName, type StockAgentName } from "./agents/registry.js";
-export { isStockAgentName, stockAgentNameForImage, STOCK_AGENT_IMAGES } from "./agents/stock.js";
+export {
+  bindingRegistry,
+  registerBinding,
+  unregisterBinding,
+  resetBindings,
+  resolveBinding,
+  type AgentName,
+  type StockAgentName,
+} from "./agents/registry.js";
+export {
+  isStockAgentName,
+  stockAgentNameForImage,
+  stockAgentImages,
+} from "./agents/stock.js";
 export { runBoundAgent, type RunBoundAgentOptions } from "./agents/run-bound.js";
-
 export {
-  CONTAINER_AUTH_PATH,
-  CURSOR_IMAGE,
-  defaultHostAuthFile,
-  cursorAgent,
-  cursorBinding,
-} from "./agents/cursor/index.js";
-
-export {
-  CLAUDE_API_KEY_ENV,
-  CLAUDE_CONTAINER_CREDENTIALS_PATH,
-  CLAUDE_IMAGE,
-  CLAUDE_OAUTH_TOKEN_ENV,
-  defaultClaudeHostCredentialsFile,
-  resolveClaudeCredentials,
-  credentialsEnv,
-  claudeAgent,
-  claudeBinding,
-  type ClaudeCredentials,
-} from "./agents/claude/index.js";
+  TRAJECTORY_FILE,
+  CONTAINER_TRAJECTORY_PATH,
+  parseTrajectory,
+  readTrajectory,
+  wrapCommandWithTrajectoryRedirect,
+  asRecord,
+  extractTextContent,
+  readString,
+  type Trajectory,
+  type TrajectoryAdapter,
+  type TrajectoryEvent,
+  type TrajectoryKind,
+  type TrajectoryToolCall,
+} from "./agents/trajectory/index.js";
 
 export {
   BASE_IMAGE,

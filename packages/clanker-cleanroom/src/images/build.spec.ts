@@ -2,12 +2,15 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect } from "vitest";
+import { afterEach, describe, expect } from "vitest";
 import test from "vitest-gwt";
 
-import type { DockerRunner } from "../agents/types.js";
+import { registerBinding, resetBindings } from "../agents/binding-registry.js";
+import type { AgentBinding, DockerRunner } from "../agents/types.js";
 import { buildImages, resetBuildMemo } from "./build.js";
 import { readRegistry, resetRegistry, upsertRegistryEntry } from "./registry.js";
+
+const STOCK_IMAGE = "clanker-cleanroom/cursor";
 
 type Context = {
   dir: string;
@@ -17,9 +20,14 @@ type Context = {
   error?: Error;
 };
 
+afterEach(() => {
+  resetBindings();
+});
+
 describe("buildImages", () => {
   test("builds in dependency order and writes the registry with agent", {
     given: {
+      registered_stock_binding,
       dockerfile_folder,
       docker_runner_that_builds,
     },
@@ -35,6 +43,7 @@ describe("buildImages", () => {
 
   test("records agent on toolchain FROM stock cursor", {
     given: {
+      registered_stock_binding,
       toolchain_from_cursor_folder,
       docker_runner_that_builds,
       stock_cursor_already_in_registry,
@@ -49,6 +58,7 @@ describe("buildImages", () => {
 
   test("inherits agent through a nested local toolchain", {
     given: {
+      registered_stock_binding,
       nested_toolchain_folder,
       docker_runner_that_builds,
     },
@@ -62,6 +72,7 @@ describe("buildImages", () => {
 
   test("skips rebuild when registry and image already exist", {
     given: {
+      registered_stock_binding,
       dockerfile_folder,
       docker_runner_that_inspects,
       prior_registry_entry,
@@ -74,6 +85,31 @@ describe("buildImages", () => {
     },
   });
 });
+
+function stockBinding(): AgentBinding {
+  return {
+    image: STOCK_IMAGE,
+    displayName: "Cursor",
+    trajectoryKind: "cursor",
+    adaptEvents: () => [],
+    command: () => ["agent"],
+    prepare: async () => ({}),
+    parseResult: () => ({
+      durationMs: null,
+      costUsd: null,
+      usage: {
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+      },
+    }),
+  };
+}
+
+function registered_stock_binding() {
+  registerBinding("cursor", stockBinding());
+}
 
 function dockerfile_folder(this: Context) {
   resetBuildMemo();

@@ -1,3 +1,5 @@
+import type { TrajectoryEvent, TrajectoryKind } from "./trajectory/types.js";
+
 export type TokenUsage = {
   inputTokens: number | null;
   outputTokens: number | null;
@@ -81,15 +83,19 @@ export type AgentPrepareResult = {
 export type AgentBinding = {
   image: string;
   displayName: string;
+  /** Provider id recorded on normalized trajectories. */
+  trajectoryKind: TrajectoryKind;
+  /** Map raw CLI NDJSON events → normalized trajectory events. */
+  adaptEvents: (rawEvents: readonly unknown[]) => TrajectoryEvent[];
   command: (opts: { prompt: string; model?: string }) => string[];
   /**
    * Resolve host-side secrets into mounts + docker-CLI env.
    * Workspace → CONTAINER_WORKSPACE and I/O mounts are always added by the shared runner.
    */
   prepare: (opts: { workspace: string }) => Promise<AgentPrepareResult>;
-  /** Map stdout → normalized metrics (throw on agent-reported failure). */
-  parseResult: (stdout: string) => AgentRunResult;
-  describeFailure?: (stdout: string) => string | undefined;
+  /** Map trajectory NDJSON → normalized metrics (throw on agent-reported failure). */
+  parseResult: (trajectory: string) => AgentRunResult;
+  describeFailure?: (trajectory: string) => string | undefined;
 };
 
 export function emptyTokenUsage(): TokenUsage {

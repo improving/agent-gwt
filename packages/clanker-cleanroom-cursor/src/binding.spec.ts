@@ -30,17 +30,20 @@ describe("cursorBinding.parseResult", () => {
 
 function parsing_cursor_json(this: Context) {
   this.result = cursorBinding.parseResult(
-    JSON.stringify({
-      type: "result",
-      duration_ms: 1200,
-      usage: {
-        inputTokens: 10,
-        outputTokens: 20,
-        cacheReadTokens: 30,
-        cacheWriteTokens: 40,
-      },
-      result: "ignored dialog",
-    }),
+    [
+      JSON.stringify({ type: "system", subtype: "init", session_id: "s1" }),
+      JSON.stringify({
+        type: "result",
+        duration_ms: 1200,
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+          cacheReadTokens: 30,
+          cacheWriteTokens: 40,
+        },
+        result: "ignored dialog",
+      }),
+    ].join("\n"),
   );
 }
 

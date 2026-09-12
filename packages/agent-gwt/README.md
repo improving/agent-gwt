@@ -2,12 +2,13 @@
 
 GWT step functions for repeatable **agent** tests. Works with [vitest-gwt](https://github.com/devzeebo/vitest-gwt) / [gwt-runner](https://github.com/devzeebo/gwt-runner).
 
-Ships the **Cursor** and **Claude Code** agents: create a temp workspace, mount **only** the agent's credentials, run the agent as your host user, and put parsed `--output-format json` on the test context.
+Ships GWT steps on top of [`clanker-cleanroom`](../clanker-cleanroom). Stock agents (Cursor, Claude Code) are separate packages you register before use.
 
 ## Install
 
 ```bash
-pnpm add -D agent-gwt vitest vitest-gwt
+pnpm add -D agent-gwt vitest vitest-gwt clanker-cleanroom
+pnpm add -D @clanker-cleanroom/cursor   # and/or @clanker-cleanroom/claude
 ```
 
 ## Prerequisites
@@ -25,14 +26,20 @@ pnpm add -D agent-gwt vitest vitest-gwt
 
 ## Setup
 
-Build stock images once in `globalSetup` (from `clanker-cleanroom` via this package):
+Register agents and build images once in `globalSetup`:
 
 ```ts
 // vitest.global-setup.ts
+import "@clanker-cleanroom/cursor/register";
+import "@clanker-cleanroom/claude/register";
+import { DOCKER_DIR as claudeDocker } from "@clanker-cleanroom/claude";
+import { DOCKER_DIR as cursorDocker } from "@clanker-cleanroom/cursor";
 import { buildImages } from "agent-gwt";
 
 export default async function setup() {
   await buildImages();
+  await buildImages({ dir: cursorDocker });
+  await buildImages({ dir: claudeDocker });
 }
 ```
 
@@ -51,17 +58,20 @@ export default defineConfig({
 
 Wire the agent and a disposable workspace with `withAspect`, then write Given/When/Then tests. Agent runs are slow — raise the timeout.
 
-Pick the agent with `agent({ name, model })`; `name` is a stock short name or a registry tag (same as `new Agent(name)`):
+Import the register side-effect in the suite (or rely on globalSetup), then pick the agent with `agent({ name, model })`:
 
 ```ts
+import "@clanker-cleanroom/cursor/register";
+
 withAspect(agent({ name: "cursor", model: "auto" })); // Cursor CLI
-withAspect(agent({ name: "claude", model: "sonnet" })); // Claude Code
+withAspect(agent({ name: "claude", model: "sonnet" })); // Claude Code (after its /register)
 withAspect(agent({ name: "cursor:node", model: "auto" })); // toolchain image
 ```
 
 ### Simple prompt
 
 ```ts
+import "@clanker-cleanroom/cursor/register";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect } from "vitest";
@@ -216,15 +226,15 @@ A Claude run whose JSON reports `is_error: true` throws from `executing_the_agen
 
 ## Docker images
 
-Stock images ship inside the `clanker-cleanroom` package (resolved from `node_modules`). First-line tag comments + `FROM` deps drive the build order:
+Base image ships in `clanker-cleanroom`; agent images ship in `@clanker-cleanroom/cursor` and `@clanker-cleanroom/claude`. First-line tag comments + `FROM` deps drive the build order:
 
-| Image                      | Role                                        |
-| -------------------------- | ------------------------------------------- |
-| `clanker-cleanroom/base`   | Shared Arch Linux base (`yay` + `aur` user) |
-| `clanker-cleanroom/cursor` | Cursor CLI on top of the base               |
-| `clanker-cleanroom/claude` | Claude Code CLI on top of the base          |
+| Image                      | Package                     | Role                                        |
+| -------------------------- | --------------------------- | ------------------------------------------- |
+| `clanker-cleanroom/base`   | `clanker-cleanroom`         | Shared Arch Linux base (`yay` + `aur` user) |
+| `clanker-cleanroom/cursor` | `@clanker-cleanroom/cursor` | Cursor CLI on top of the base               |
+| `clanker-cleanroom/claude` | `@clanker-cleanroom/claude` | Claude Code CLI on top of the base          |
 
-`buildImages()` builds the whole stock folder in dependency order and records tags in `clanker-cleanroom.images.json` at the project root (build once, run many).
+Build base, then each agent `DOCKER_DIR`, then any toolchain folders. Tags are recorded in `clanker-cleanroom.images.json` at the project root.
 
 ### Apple Silicon
 
@@ -251,10 +261,13 @@ USER root
 
 ```ts
 // vitest.global-setup.ts
+import "@clanker-cleanroom/cursor/register";
+import { DOCKER_DIR as cursorDocker } from "@clanker-cleanroom/cursor";
 import { buildImages } from "agent-gwt";
 
 export default async function setup() {
-  await buildImages(); // stock images from clanker-cleanroom
+  await buildImages();
+  await buildImages({ dir: cursorDocker });
   await buildImages({ dir: "./docker/toolchains" });
 }
 ```
@@ -263,7 +276,7 @@ export default async function setup() {
 agent({ name: "cursor:node", model: "auto" });
 ```
 
-`name` must be a stock agent (`cursor` / `claude`) or a tag recorded in `clanker-cleanroom.images.json` (which also stores which stock binding to use). `image` remains a low-level override of the resolved Docker tag.
+`name` must be a **registered** stock agent or a tag recorded in `clanker-cleanroom.images.json` (which also stores which stock binding to use). `image` remains a low-level override of the resolved Docker tag.
 
 ## What `agent` does
 

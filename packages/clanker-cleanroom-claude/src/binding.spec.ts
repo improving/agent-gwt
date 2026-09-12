@@ -30,19 +30,22 @@ describe("claudeBinding.parseResult", () => {
 
 function parsing_claude_json(this: Context) {
   this.result = claudeBinding.parseResult(
-    JSON.stringify({
-      type: "result",
-      is_error: false,
-      duration_ms: 500,
-      total_cost_usd: 0.0123,
-      usage: {
-        input_tokens: 11,
-        output_tokens: 22,
-        cache_read_input_tokens: 33,
-        cache_creation_input_tokens: 44,
-      },
-      result: "ignored dialog",
-    }),
+    [
+      JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "hi" }] } }),
+      JSON.stringify({
+        type: "result",
+        is_error: false,
+        duration_ms: 500,
+        total_cost_usd: 0.0123,
+        usage: {
+          input_tokens: 11,
+          output_tokens: 22,
+          cache_read_input_tokens: 33,
+          cache_creation_input_tokens: 44,
+        },
+        result: "ignored dialog",
+      }),
+    ].join("\n"),
   );
 }
 

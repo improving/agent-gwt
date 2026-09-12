@@ -9,7 +9,7 @@ type Context = {
 };
 
 describe("parseAgentJsonOutput", () => {
-  test("parses JSON stdout", {
+  test("parses a single JSON result object", {
     given: {
       json_stdout,
     },
@@ -21,7 +21,19 @@ describe("parseAgentJsonOutput", () => {
     },
   });
 
-  test("rejects empty stdout", {
+  test("returns the terminal result event from NDJSON", {
+    given: {
+      ndjson_trajectory,
+    },
+    when: {
+      parsing_stdout,
+    },
+    then: {
+      result_is_terminal_event,
+    },
+  });
+
+  test("rejects empty trajectory", {
     given: {
       empty_stdout,
     },
@@ -29,7 +41,7 @@ describe("parseAgentJsonOutput", () => {
       parsing_stdout,
     },
     then: {
-      expect_error: error_mentions_empty_stdout,
+      expect_error: error_mentions_empty_trajectory,
     },
   });
 
@@ -50,6 +62,13 @@ function json_stdout(this: Context) {
   this.stdout = '  {"type":"result","result":"ok"}  \n';
 }
 
+function ndjson_trajectory(this: Context) {
+  this.stdout = [
+    JSON.stringify({ type: "system", subtype: "init" }),
+    JSON.stringify({ type: "result", result: "done", duration_ms: 9 }),
+  ].join("\n");
+}
+
 function empty_stdout(this: Context) {
   this.stdout = "   \n";
 }
@@ -66,8 +85,12 @@ function result_is_parsed_object(this: Context) {
   expect(this.result).toEqual({ type: "result", result: "ok" });
 }
 
-function error_mentions_empty_stdout(this: Context, error: Error) {
-  expect(error.message).toContain("empty stdout");
+function result_is_terminal_event(this: Context) {
+  expect(this.result).toEqual({ type: "result", result: "done", duration_ms: 9 });
+}
+
+function error_mentions_empty_trajectory(this: Context, error: Error) {
+  expect(error.message).toContain("empty trajectory");
 }
 
 function error_mentions_invalid_json(this: Context, error: Error) {

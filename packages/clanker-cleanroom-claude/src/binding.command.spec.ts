@@ -1,9 +1,13 @@
 import { describe, expect } from "vitest";
 import test from "vitest-gwt";
 
-import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "../base/constants.js";
-import { buildDockerRunArgs } from "../docker.js";
-import type { DockerVolumeMount } from "../types.js";
+import {
+  buildDockerRunArgs,
+  CONTAINER_HOME,
+  CONTAINER_WORKSPACE,
+  type DockerVolumeMount,
+} from "clanker-cleanroom";
+
 import { claudeBinding } from "./binding.js";
 import type { ClaudeCredentials } from "./credentials.js";
 import { credentialsEnv } from "./credentials.js";
@@ -187,7 +191,8 @@ function invokes_claude_headless_with_json_output(this: Context) {
   expect(this.args).toContain("claude");
   expect(this.args).toContain("-p");
   expect(this.args).toContain("--output-format");
-  expect(this.args).toContain("json");
+  expect(this.args).toContain("stream-json");
+  expect(this.args).toContain("--verbose");
   expect(this.args).toContain("--dangerously-skip-permissions");
   expect(this.args.at(-2)).toBe("--");
   expect(this.args.at(-1)).toBe("Create a README");
