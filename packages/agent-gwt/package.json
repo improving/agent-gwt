@@ -101,6 +101,8 @@
       ],
       "dependencies": [
         "../clanker-cleanroom:build",
+        "../clanker-cleanroom-cursor:build",
+        "../clanker-cleanroom-claude:build",
         "build"
       ]
     },
@@ -129,6 +131,8 @@
     "clanker-cleanroom": "workspace:*"
   },
   "devDependencies": {
+    "@clanker-cleanroom/claude": "workspace:*",
+    "@clanker-cleanroom/cursor": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "typescript": "catalog:",

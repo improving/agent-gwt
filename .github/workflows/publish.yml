@@ -64,7 +64,13 @@ jobs:
       - name: Set package versions
         run: |
           set -euo pipefail
-          for pkg in package.json packages/agent-gwt/package.json packages/clanker-cleanroom/package.json; do
+          for pkg in \
+            package.json \
+            packages/agent-gwt/package.json \
+            packages/clanker-cleanroom/package.json \
+            packages/clanker-cleanroom-cursor/package.json \
+            packages/clanker-cleanroom-claude/package.json
+          do
             jq --arg v "${{ steps.version.outputs.prerelease }}" '.version = $v' "${pkg}" > "${pkg}.tmp"
             mv "${pkg}.tmp" "${pkg}"
           done
@@ -81,7 +87,12 @@ jobs:
       - name: Publish prereleases
         run: |
           set -euo pipefail
-          for filter in clanker-cleanroom agent-gwt; do
+          for filter in \
+            clanker-cleanroom \
+            @clanker-cleanroom/cursor \
+            @clanker-cleanroom/claude \
+            agent-gwt
+          do
             pnpm --filter "${filter}" publish \
               --access public \
               --tag "pr-${{ github.event.pull_request.number }}" \
@@ -141,16 +152,25 @@ jobs:
           workdir="${RUNNER_TEMP}/agent-gwt-stage"
           mkdir -p "${workdir}"
           stage_ids=()
-          for name in clanker-cleanroom agent-gwt; do
+          for name in \
+            clanker-cleanroom \
+            @clanker-cleanroom/cursor \
+            @clanker-cleanroom/claude \
+            agent-gwt
+          do
             cd "${workdir}"
-            rm -rf staged "${name}"-*.tgz
+            tarball_prefix="${name#@}"
+            tarball_prefix="${tarball_prefix//\//-}"
+            rm -rf staged "${tarball_prefix}"-*.tgz
             npm pack "${name}@${PR_TAG}" --userconfig /dev/null --registry https://registry.npmjs.org
-            tarball="$(ls -1 ${name}-*.tgz | head -n1)"
+            tarball="$(ls -1 ${tarball_prefix}-*.tgz | head -n1)"
             mkdir -p staged
             tar -xzf "${tarball}" -C staged
             jq --arg v "${NEXT}" '
               .version = $v
               | if .dependencies["clanker-cleanroom"] then .dependencies["clanker-cleanroom"] = $v else . end
+              | if .dependencies["@clanker-cleanroom/cursor"] then .dependencies["@clanker-cleanroom/cursor"] = $v else . end
+              | if .dependencies["@clanker-cleanroom/claude"] then .dependencies["@clanker-cleanroom/claude"] = $v else . end
             ' staged/package/package.json > staged/package/package.json.tmp
             mv staged/package/package.json.tmp staged/package/package.json
             err="$(mktemp)"
@@ -186,7 +206,13 @@ jobs:
           NEXT: ${{ steps.version.outputs.next }}
         run: |
           set -euo pipefail
-          packages=(package.json packages/agent-gwt/package.json packages/clanker-cleanroom/package.json)
+          packages=(
+            package.json
+            packages/agent-gwt/package.json
+            packages/clanker-cleanroom/package.json
+            packages/clanker-cleanroom-cursor/package.json
+            packages/clanker-cleanroom-claude/package.json
+          )
           for pkg in "${packages[@]}"; do
             if [[ ! -f "${pkg}" ]]; then
               echo "Missing ${pkg}; expected synced monorepo versions" >&2
@@ -208,3 +234,5 @@ jobs:
         run: |
           npm dist-tag rm agent-gwt "${PR_TAG}" || true
           npm dist-tag rm clanker-cleanroom "${PR_TAG}" || true
+          npm dist-tag rm @clanker-cleanroom/cursor "${PR_TAG}" || true
+          npm dist-tag rm @clanker-cleanroom/claude "${PR_TAG}" || true

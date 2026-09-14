@@ -1,18 +1,28 @@
-import { parseAgentJsonOutput } from "../parse-result.js";
-import type { AgentBinding, AgentRunResult, DockerVolumeMount } from "../types.js";
-import { readTokenCount } from "../types.js";
+import {
+  asRecord,
+  parseAgentJsonOutput,
+  readTokenCount,
+  type AgentBinding,
+  type AgentRunResult,
+  type DockerVolumeMount,
+} from "clanker-cleanroom";
+
 import { CLAUDE_CONTAINER_CREDENTIALS_PATH, CLAUDE_IMAGE } from "./constants.js";
 import { credentialsEnv, resolveClaudeCredentials } from "./credentials.js";
+import { adaptClaudeEvents } from "./trajectory.js";
 
 export const claudeBinding: AgentBinding = {
   image: CLAUDE_IMAGE,
   displayName: "Claude",
+  trajectoryKind: "claude",
+  adaptEvents: adaptClaudeEvents,
   command: ({ prompt, model }) => {
     const claudeArgs = [
       "claude",
       "-p",
       "--output-format",
-      "json",
+      "stream-json",
+      "--verbose",
       "--dangerously-skip-permissions",
     ];
     if (model !== undefined && model !== "") {
@@ -40,8 +50,8 @@ export const claudeBinding: AgentBinding = {
   describeFailure: describeClaudeFailure,
 };
 
-function parseClaudeResult(stdout: string): AgentRunResult {
-  const parsed = parseAgentJsonOutput(stdout);
+function parseClaudeResult(trajectory: string): AgentRunResult {
+  const parsed = parseAgentJsonOutput(trajectory);
   if (isErrorResult(parsed)) {
     throw new Error(`Claude agent reported an error: ${describeErrorResult(parsed)}`);
   }
@@ -63,9 +73,9 @@ function parseClaudeResult(stdout: string): AgentRunResult {
   };
 }
 
-function describeClaudeFailure(stdout: string): string | undefined {
+function describeClaudeFailure(trajectory: string): string | undefined {
   try {
-    const parsed = parseAgentJsonOutput(stdout);
+    const parsed = parseAgentJsonOutput(trajectory);
     return isErrorResult(parsed) ? describeErrorResult(parsed) : undefined;
   } catch {
     return undefined;
@@ -99,11 +109,4 @@ function describeErrorResult(result: ClaudeErrorResult): string {
   }
 
   return message;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  return value as Record<string, unknown>;
 }

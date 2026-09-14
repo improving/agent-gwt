@@ -1,8 +1,12 @@
 import { describe, expect } from "vitest";
 import test from "vitest-gwt";
 
-import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "../base/constants.js";
-import { buildDockerRunArgs } from "../docker.js";
+import {
+  buildDockerRunArgs,
+  CONTAINER_HOME,
+  CONTAINER_WORKSPACE,
+} from "clanker-cleanroom";
+
 import { cursorBinding } from "./binding.js";
 import { CONTAINER_AUTH_PATH } from "./constants.js";
 
@@ -95,7 +99,7 @@ function does_not_mount_dot_cursor_directory(this: Context) {
 function invokes_agent_with_json_output(this: Context) {
   expect(this.args).toContain("agent");
   expect(this.args).toContain("--output-format");
-  expect(this.args).toContain("json");
+  expect(this.args).toContain("stream-json");
   expect(this.args).toContain("--force");
   expect(this.args.at(-1)).toBe("Create a README");
 }

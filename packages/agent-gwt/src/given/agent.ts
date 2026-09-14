@@ -3,7 +3,7 @@ import { Agent, ensureDockerImage, type RegistryOptions } from "clanker-cleanroo
 import type { AgentContext } from "../types.js";
 
 export type ConfigureAgentOptions = {
-  /** Stock short name (`cursor`, `claude`) or a registry tag (`cursor:node`). */
+  /** Registered stock short name or a registry tag (`cursor:node`). */
   name: string;
   model?: string;
   /** Override the resolved Docker image tag. */
@@ -11,11 +11,11 @@ export type ConfigureAgentOptions = {
 } & RegistryOptions;
 
 export function agent(options: ConfigureAgentOptions) {
-  const registryOptions =
-    options.packageRoot !== undefined ? { packageRoot: options.packageRoot } : {};
-  const resolved = new Agent(options.name, registryOptions);
-
   return async function (this: AgentContext): Promise<void> {
+    const registryOptions =
+      options.packageRoot !== undefined ? { packageRoot: options.packageRoot } : {};
+    const resolved = new Agent(options.name, registryOptions);
+
     this.agent = resolved;
     this.image = options.image ?? resolved.image;
 

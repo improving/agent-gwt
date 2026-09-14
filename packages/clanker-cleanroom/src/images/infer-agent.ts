@@ -61,7 +61,8 @@ export function inferAgent(
 
     throw new Error(
       `Cannot determine stock agent for image "${entry.tag}". ` +
-        `FROM chain must reach clanker-cleanroom/cursor or clanker-cleanroom/claude.`,
+        `FROM chain must reach a registered stock agent image ` +
+        `(import \`@clanker-cleanroom/<agent>/register\` before buildImages).`,
     );
   } finally {
     visiting.delete(entry.tag);

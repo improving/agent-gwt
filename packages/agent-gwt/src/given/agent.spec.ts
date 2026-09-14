@@ -5,11 +5,20 @@ import { join } from "node:path";
 import { describe, expect, vi } from "vitest";
 import test, { withAspect } from "vitest-gwt";
 
-import { CLAUDE_IMAGE, CURSOR_IMAGE, resetRegistry, upsertRegistryEntry } from "clanker-cleanroom";
+import {
+  registerBinding,
+  resetBindings,
+  resetRegistry,
+  upsertRegistryEntry,
+  type AgentBinding,
+} from "clanker-cleanroom";
 import * as cleanroom from "clanker-cleanroom";
 
 import { agent } from "./agent.js";
 import type { AgentContext } from "../types.js";
+
+const CURSOR_IMAGE = "test/cursor";
+const CLAUDE_IMAGE = "test/claude";
 
 type Context = AgentContext & {
   ensureCalls: number;
@@ -26,6 +35,7 @@ describe("agent", () => {
   test("sets agent, model, and image from the resolved agent", {
     given: {
       stub_ensure_docker_image,
+      registered_cursor_binding,
     },
     when: {
       applying_agent: agent({ name: "cursor", model: "auto" }),
@@ -41,6 +51,7 @@ describe("agent", () => {
   test("uses an image override when provided", {
     given: {
       stub_ensure_docker_image,
+      registered_cursor_binding,
     },
     when: {
       applying_agent: agent({ name: "cursor", image: "my-app/agent:local" }),
@@ -55,6 +66,7 @@ describe("agent", () => {
   test("resolves a registered toolchain by name", {
     given: {
       stub_ensure_docker_image,
+      registered_cursor_binding,
       registered_toolchain,
     },
     when: {
@@ -83,6 +95,7 @@ describe("agent", () => {
   test("resolves the claude agent by name", {
     given: {
       stub_ensure_docker_image,
+      registered_claude_binding,
     },
     when: {
       applying_agent: agent({ name: "claude", model: "sonnet" }),
@@ -96,11 +109,41 @@ describe("agent", () => {
   });
 });
 
+function fixtureBinding(image: string, displayName: string): AgentBinding {
+  return {
+    image,
+    displayName,
+    trajectoryKind: displayName.toLowerCase(),
+    adaptEvents: () => [],
+    command: () => ["agent"],
+    prepare: async () => ({}),
+    parseResult: () => ({
+      durationMs: null,
+      costUsd: null,
+      usage: {
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+      },
+    }),
+  };
+}
+
 function reset_agent_test_state(this: Context) {
   vi.restoreAllMocks();
+  resetBindings();
   this.ensureCalls = 0;
   this.ensuredImage = undefined;
   this.error = undefined;
+}
+
+function registered_cursor_binding() {
+  registerBinding("cursor", fixtureBinding(CURSOR_IMAGE, "Cursor"));
+}
+
+function registered_claude_binding() {
+  registerBinding("claude", fixtureBinding(CLAUDE_IMAGE, "Claude"));
 }
 
 function stub_ensure_docker_image(this: Context) {

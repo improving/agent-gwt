@@ -1,4 +1,4 @@
-import { CONTAINER_HOME } from "../base/constants.js";
+import { CONTAINER_HOME } from "clanker-cleanroom";
 
 export const CURSOR_IMAGE = "clanker-cleanroom/cursor";
 export const CONTAINER_AUTH_PATH = `${CONTAINER_HOME}/.config/cursor/auth.json`;

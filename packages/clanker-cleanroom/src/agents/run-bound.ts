@@ -1,6 +1,10 @@
-import { CONTAINER_HOME, CONTAINER_WORKSPACE } from "./base/constants.js";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import { CONTAINER_HOME, CONTAINER_OUTPUT, CONTAINER_WORKSPACE } from "./base/constants.js";
 import { buildDockerRunArgs, runDocker } from "./docker.js";
 import { agentRunError } from "./run-error.js";
+import { TRAJECTORY_FILE, wrapCommandWithTrajectoryRedirect } from "./trajectory/index.js";
 import type {
   AgentBinding,
   AgentRunBindingsOptions,
@@ -31,6 +35,13 @@ export async function runBoundAgent(
     ...(prepared.volumes ?? []),
   ];
 
+  const outputHost = hostPathForContainer(volumes, CONTAINER_OUTPUT);
+  if (outputHost === undefined) {
+    throw new Error(
+      `runBoundAgent requires an ioVolume mounted at ${CONTAINER_OUTPUT} to capture trajectory`,
+    );
+  }
+
   const env = prepared.env ?? {};
   const args = buildDockerRunArgs({
     image: options.image,
@@ -40,22 +51,52 @@ export async function runBoundAgent(
     env: { HOME: CONTAINER_HOME },
     envPassthrough: Object.keys(env),
     volumes,
-    command: binding.command({
-      prompt: options.prompt,
-      ...(options.model !== undefined ? { model: options.model } : {}),
-    }),
+    command: wrapCommandWithTrajectoryRedirect(
+      binding.command({
+        prompt: options.prompt,
+        ...(options.model !== undefined ? { model: options.model } : {}),
+      }),
+    ),
   });
 
   const result = await dockerRunner(args, { env });
+  const trajectory = await readTrajectoryFile(outputHost);
 
   if (result.exitCode !== 0) {
     throw agentRunError({
       agent: binding.displayName,
       image: options.image,
       result,
-      detail: binding.describeFailure?.(result.stdout),
+      detail: binding.describeFailure?.(trajectory),
     });
   }
 
-  return binding.parseResult(result.stdout);
+  return binding.parseResult(trajectory);
+}
+
+function hostPathForContainer(
+  volumes: readonly DockerVolumeMount[],
+  containerPath: string,
+): string | undefined {
+  return volumes.find((volume) => volume.container === containerPath)?.host;
+}
+
+async function readTrajectoryFile(outputHost: string): Promise<string> {
+  try {
+    return await readFile(join(outputHost, TRAJECTORY_FILE), "utf8");
+  } catch (error) {
+    if (isNotFound(error)) {
+      return "";
+    }
+    throw error;
+  }
+}
+
+function isNotFound(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "ENOENT"
+  );
 }

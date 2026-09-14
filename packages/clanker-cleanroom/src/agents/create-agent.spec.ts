@@ -61,6 +61,8 @@ function stub_binding_and_runner(this: Context) {
   this.binding = {
     image: "clanker-cleanroom/cursor",
     displayName: "Cursor",
+    trajectoryKind: "cursor",
+    adaptEvents: () => [],
     command: () => ["agent"],
     prepare: async () => ({}),
     parseResult: () => ({

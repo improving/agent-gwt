@@ -52,6 +52,12 @@ importers:
         specifier: workspace:*
         version: link:../clanker-cleanroom
     devDependencies:
+      '@clanker-cleanroom/claude':
+        specifier: workspace:*
+        version: link:../clanker-cleanroom-claude
+      '@clanker-cleanroom/cursor':
+        specifier: workspace:*
+        version: link:../clanker-cleanroom-cursor
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.0
@@ -78,6 +84,72 @@ importers:
         version: 0.14.13
 
   packages/clanker-cleanroom:
+    dependencies:
+      js-jsonl:
+        specifier: 1.1.1
+        version: 1.1.1
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.4.0
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 4.1.11(@vitest/browser@4.1.11)(vitest@4.1.11)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(typescript@7.0.2)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.3.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(typescript@7.0.2))(typescript@7.0.2)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.4.0)(@vitest/browser-preview@4.1.11)(@vitest/coverage-v8@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(typescript@7.0.2))
+      vitest-gwt:
+        specifier: 'catalog:'
+        version: 4.1.4(vitest@4.1.11)
+      wireit:
+        specifier: 'catalog:'
+        version: 0.14.13
+
+  packages/clanker-cleanroom-claude:
+    dependencies:
+      clanker-cleanroom:
+        specifier: workspace:*
+        version: link:../clanker-cleanroom
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.4.0
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 4.1.11(@vitest/browser@4.1.11)(vitest@4.1.11)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(typescript@7.0.2)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.3.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(typescript@7.0.2))(typescript@7.0.2)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.4.0)(@vitest/browser-preview@4.1.11)(@vitest/coverage-v8@4.1.11)(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(typescript@7.0.2))
+      vitest-gwt:
+        specifier: 'catalog:'
+        version: 4.1.4(vitest@4.1.11)
+      wireit:
+        specifier: 'catalog:'
+        version: 0.14.13
+
+  packages/clanker-cleanroom-cursor:
+    dependencies:
+      clanker-cleanroom:
+        specifier: workspace:*
+        version: link:../clanker-cleanroom
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -447,6 +519,10 @@ packages:
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
+
+  '@sindresorhus/is@4.6.0':
+    resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
+    engines: {node: '>=10'}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -1018,6 +1094,9 @@ packages:
     resolution: {integrity: sha512-HGYWWS/ehqTV3xN10i23tkPkpH46MLCIMFNCaaKNavAXTF1RkqxawEPtnjnGZ6XKSInBKkiOA5BKS+aZiY3AvA==}
     engines: {node: '>=8'}
 
+  js-jsonl@1.1.1:
+    resolution: {integrity: sha512-VkkV3ac6N6tRaK32NIaXStzs9l3py/XK5pCbTEyiUt5Ch5We3H8ZcrSQndQ4TyIisfKMIjvoiTNWsb7mhQcZZw==}
+
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
 
@@ -1559,6 +1638,8 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
+  '@sindresorhus/is@4.6.0': {}
+
   '@standard-schema/spec@1.1.0': {}
 
   '@testing-library/dom@10.4.1':
@@ -1972,6 +2053,10 @@ snapshots:
     dependencies:
       html-escaper: 2.0.2
       istanbul-lib-report: 3.0.1
+
+  js-jsonl@1.1.1:
+    dependencies:
+      '@sindresorhus/is': 4.6.0
 
   js-tokens@10.0.0: {}
 

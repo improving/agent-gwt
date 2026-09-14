@@ -6,6 +6,7 @@ import { resolveBinding } from "./binding-registry.js";
 import { ensureDockerImage } from "./ensure-image.js";
 import { runBoundAgent } from "./run-bound.js";
 import { isStockAgentName } from "./stock.js";
+import { readTrajectory, type Trajectory } from "./trajectory/index.js";
 import type { AgentBinding, AgentRunResult, RunAgentOptions } from "./types.js";
 
 type FromBinding = {
@@ -77,6 +78,11 @@ export class Agent {
       ],
     });
   }
+
+  /** Load and normalize the NDJSON trajectory written by the last {@link run}. */
+  async trajectory(): Promise<Trajectory> {
+    return readTrajectory(this.output, this.binding.trajectoryKind, this.binding.adaptEvents);
+  }
 }
 
 function lookupAgent(
@@ -91,8 +97,8 @@ function lookupAgent(
   const entry = readRegistry(options).images[name];
   if (entry === undefined) {
     throw new Error(
-      `Unknown agent "${name}". Use a stock name ("cursor", "claude") or a tag ` +
-        `recorded in clanker-cleanroom.images.json via buildImages().`,
+      `Unknown agent "${name}". Import \`@clanker-cleanroom/<agent>/register\` for a stock ` +
+        `name, or use a tag recorded in clanker-cleanroom.images.json via buildImages().`,
     );
   }
 
