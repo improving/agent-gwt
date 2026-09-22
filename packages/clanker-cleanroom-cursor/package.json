@@ -1,6 +1,6 @@
 {
   "name": "@clanker-cleanroom/cursor",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Cursor agent binding for clanker-cleanroom",
   "keywords": [
     "agent",
