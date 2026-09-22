@@ -14,7 +14,8 @@ RUN curl -fsSL https://cursor.com/install | bash \
   && command -v agent
 
 # Empty home for arbitrary host UIDs; only auth.json is bind-mounted at runtime.
-RUN mkdir -p /home/agent/.config/cursor \
+# Pre-create .cursor/chats so a narrow session mount does not leave a root-owned parent.
+RUN mkdir -p /home/agent/.config/cursor /home/agent/.cursor/chats \
   && chmod -R 0777 /home/agent
 
 ENV HOME=/home/agent

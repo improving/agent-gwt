@@ -10,7 +10,7 @@ import {
   type AgentRunResult,
 } from "clanker-cleanroom";
 
-import { CONTAINER_AUTH_PATH, CURSOR_IMAGE, defaultHostAuthFile } from "./constants.js";
+import { CONTAINER_AUTH_PATH, CONTAINER_SESSION_PATH, CURSOR_IMAGE, defaultHostAuthFile } from "./constants.js";
 import { adaptCursorEvents } from "./trajectory.js";
 
 export const cursorBinding: AgentBinding = {
@@ -18,8 +18,12 @@ export const cursorBinding: AgentBinding = {
   displayName: "Cursor",
   trajectoryKind: "cursor",
   adaptEvents: adaptCursorEvents,
-  command: ({ prompt, model }) => {
+  sessionDataPath: CONTAINER_SESSION_PATH,
+  command: ({ prompt, model, sessionId }) => {
     const agentArgs = ["agent", "-p", "--force", "--output-format", "stream-json"];
+    if (sessionId !== undefined && sessionId !== "") {
+      agentArgs.push("--resume", sessionId);
+    }
     if (model !== undefined && model !== "") {
       agentArgs.push("--model", model);
     }

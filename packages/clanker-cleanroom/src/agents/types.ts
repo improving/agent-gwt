@@ -80,6 +80,13 @@ export type AgentPrepareResult = {
   env?: Record<string, string>;
 };
 
+export type AgentCommandOptions = {
+  prompt: string;
+  model?: string;
+  /** Prior CLI session id; bindings that support resume pass this as `--resume`. */
+  sessionId?: string;
+};
+
 export type AgentBinding = {
   image: string;
   displayName: string;
@@ -87,7 +94,7 @@ export type AgentBinding = {
   trajectoryKind: TrajectoryKind;
   /** Map raw CLI NDJSON events → normalized trajectory events. */
   adaptEvents: (rawEvents: readonly unknown[]) => TrajectoryEvent[];
-  command: (opts: { prompt: string; model?: string }) => string[];
+  command: (opts: AgentCommandOptions) => string[];
   /**
    * Resolve host-side secrets into mounts + docker-CLI env.
    * Workspace → CONTAINER_WORKSPACE and I/O mounts are always added by the shared runner.
@@ -96,6 +103,12 @@ export type AgentBinding = {
   /** Map trajectory NDJSON → normalized metrics (throw on agent-reported failure). */
   parseResult: (trajectory: string) => AgentRunResult;
   describeFailure?: (trajectory: string) => string | undefined;
+  /**
+   * Container path for a host-backed session store so `--resume` works across
+   * ephemeral `docker run`s. Mount only the CLI's session folder (not all of
+   * `~/.cursor` / `~/.claude`).
+   */
+  sessionDataPath?: string;
 };
 
 export function emptyTokenUsage(): TokenUsage {

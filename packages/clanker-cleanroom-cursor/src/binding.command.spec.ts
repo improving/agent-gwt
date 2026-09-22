@@ -37,6 +37,15 @@ describe("cursorBinding.command", () => {
       includes_model_flag,
     },
   });
+
+  test("includes --resume when a session id is provided", {
+    when: {
+      building_docker_args_with_session,
+    },
+    then: {
+      includes_resume_flag,
+    },
+  });
 });
 
 function building_docker_args(this: Context) {
@@ -47,7 +56,11 @@ function building_docker_args_with_model(this: Context) {
   this.args = dockerArgs({ model: "composer-2" });
 }
 
-function dockerArgs(options: { model?: string } = {}): string[] {
+function building_docker_args_with_session(this: Context) {
+  this.args = dockerArgs({ sessionId: "sess-cursor-1" });
+}
+
+function dockerArgs(options: { model?: string; sessionId?: string } = {}): string[] {
   return buildDockerRunArgs({
     image: "clanker-cleanroom/cursor",
     uid: 1000,
@@ -65,6 +78,7 @@ function dockerArgs(options: { model?: string } = {}): string[] {
     command: cursorBinding.command({
       prompt: "Create a README",
       ...(options.model !== undefined ? { model: options.model } : {}),
+      ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}),
     }),
   });
 }
@@ -109,4 +123,11 @@ function includes_model_flag(this: Context) {
   expect(modelIndex).toBeGreaterThan(-1);
   expect(this.args[modelIndex + 1]).toBe("composer-2");
   expect(this.args.indexOf("--")).toBeGreaterThan(modelIndex);
+}
+
+function includes_resume_flag(this: Context) {
+  const resumeIndex = this.args.indexOf("--resume");
+  expect(resumeIndex).toBeGreaterThan(-1);
+  expect(this.args[resumeIndex + 1]).toBe("sess-cursor-1");
+  expect(this.args.indexOf("--")).toBeGreaterThan(resumeIndex);
 }
