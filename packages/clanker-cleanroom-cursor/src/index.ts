@@ -1,4 +1,4 @@
-export { CONTAINER_AUTH_PATH, CURSOR_IMAGE, defaultHostAuthFile } from "./constants.js";
+export { CONTAINER_AUTH_PATH, CONTAINER_SESSION_PATH, CURSOR_IMAGE, defaultHostAuthFile } from "./constants.js";
 export { cursorBinding } from "./binding.js";
 export { cursorAgent } from "./agent.js";
 export { adaptCursorEvents } from "./trajectory.js";

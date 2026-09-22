@@ -118,6 +118,21 @@ await new Agent("cursor:node").run({
 
 Convenience instances live on the agent packages (`cursorAgent` / `claudeAgent` via `Agent.fromBinding`).
 
+### Multi-turn (session resume)
+
+The same `Agent` instance resumes the prior CLI session on every `run()` after the first. The session id is stored on the instance; session files are staged on the host and remounted into the container (Cursor: `~/.cursor/chats`, Claude: `~/.claude/projects/-workspace` only — not the whole home dir).
+
+```ts
+const agent = new Agent("cursor");
+
+await agent.run({ workspace, prompt: "Create README.md with Hello" });
+await agent.run({ workspace, prompt: "Append a Usage section" }); // resumes
+
+await agent.resetSession(); // fresh session on the next run
+```
+
+Call `agent.sessionId()` to inspect the captured id. Output is still cleared between runs; input and session data are not.
+
 ### Custom binding
 
 ```ts
@@ -139,9 +154,9 @@ await Agent.fromBinding(binding).run({ workspace, prompt });
 ## What a run does
 
 1. `prepare` resolves host credentials → volume mounts and/or docker-CLI env (secrets never appear on argv when using env passthrough)
-2. Mounts the workspace at `/workspace`, staged input at `/agent/input` (read-only), and output at `/agent/output`, then runs as your host uid/gid
-3. Invokes the agent CLI with `--output-format stream-json`, redirecting stdout to `/agent/output/trajectory` inside the container
-4. Reads that trajectory file and returns `AgentRunResult` metrics from the terminal `result` event
+2. Mounts the workspace at `/workspace`, staged input at `/agent/input` (read-only), output at `/agent/output`, and (when the binding defines `sessionDataPath`) the instance session store; then runs as your host uid/gid
+3. Invokes the agent CLI with `--output-format stream-json` (and `--resume <id>` after the first turn), redirecting stdout to `/agent/output/trajectory` inside the container
+4. Reads that trajectory file, stores `sessionId` on the `Agent` instance, and returns `AgentRunResult` metrics from the terminal `result` event
 
 ### Input / output mounts
 
@@ -166,6 +181,7 @@ const trajectory = await agent.trajectory();
 
 - **Input** is mounted read-only at `/agent/input` and persists across runs until `agent.input.clear()`
 - **Output** is mounted read-write at `/agent/output` and is cleared at the start of each `run()`
+- **Session** (when the binding sets `sessionDataPath`) persists across runs until `agent.resetSession()`
 - Each run streams CLI NDJSON to `/agent/output/trajectory`. Inspect with `agent.trajectory()` or `parseTrajectory(ndjson, kind, adaptEvents)`.
 - Paths must be relative (no `..`); `write` accepts `string | Uint8Array`
 
@@ -180,6 +196,7 @@ const trajectory = await agent.trajectory();
 | Export                                       | Role                                                           |
 | -------------------------------------------- | -------------------------------------------------------------- |
 | `Agent`                                      | `new Agent(name)` — registered stock name or registry tag      |
+| `Agent.sessionId()` / `Agent.resetSession()` | Inspect or clear the instance CLI session                      |
 | `registerBinding` / `resetBindings`          | Pluggable stock binding registry                               |
 | `AgentFs` / `agent.input` / `agent.output`   | Stage files for `/agent/input` (ro) and `/agent/output`        |
 | `Agent.trajectory()`                         | Normalize the last run's `trajectory` NDJSON                   |

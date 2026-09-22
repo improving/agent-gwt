@@ -2,6 +2,8 @@ import { CONTAINER_HOME } from "clanker-cleanroom";
 
 export const CLAUDE_IMAGE = "clanker-cleanroom/claude";
 export const CLAUDE_CONTAINER_CREDENTIALS_PATH = `${CONTAINER_HOME}/.claude/.credentials.json`;
+/** Session transcripts for cwd `/workspace` (Claude encodes `/` as `-`). */
+export const CLAUDE_CONTAINER_SESSION_PATH = `${CONTAINER_HOME}/.claude/projects/-workspace`;
 
 /** Long-lived OAuth token from `claude setup-token` (Claude subscription). */
 export const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";

@@ -1,5 +1,6 @@
 export type {
   AgentBinding,
+  AgentCommandOptions,
   AgentOptions,
   AgentPrepareResult,
   AgentRunBindingsOptions,

@@ -1,4 +1,5 @@
 import { mkdtempSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,10 +12,13 @@ import * as ensureImageModule from "./ensure-image.js";
 import * as buildImagesModule from "../images/build.js";
 import { resetRegistry, upsertRegistryEntry } from "../images/registry.js";
 import * as runBoundModule from "./run-bound.js";
-import { BASE_IMAGE } from "./base/constants.js";
-import type { AgentBinding, AgentRunResult } from "./types.js";
+import { BASE_IMAGE, CONTAINER_OUTPUT } from "./base/constants.js";
+import { TRAJECTORY_FILE } from "./trajectory/index.js";
+import type { AgentBinding, AgentRunResult, DockerVolumeMount } from "./types.js";
 
 const STOCK_IMAGE = "test/stock-agent";
+const STOCK_SESSION_PATH = "/home/agent/.stock/sessions";
+const STOCK_SESSION_ID = "sess-stock-1";
 
 type Context = {
   packageRoot: string;
@@ -23,6 +27,9 @@ type Context = {
   error?: Error;
   inputAfterRuns?: string;
   outputListed?: string[];
+  firstRunOptions?: runBoundModule.RunBoundAgentOptions | undefined;
+  secondRunOptions?: runBoundModule.RunBoundAgentOptions | undefined;
+  thirdRunOptions?: runBoundModule.RunBoundAgentOptions | undefined;
 };
 
 afterEach(() => {
@@ -84,6 +91,35 @@ describe("Agent", () => {
     },
   });
 
+  test("resumes the same session on subsequent runs", {
+    given: {
+      registered_stock_binding,
+      stub_run_bound_writing_session_trajectory,
+    },
+    when: {
+      running_twice_for_resume,
+    },
+    then: {
+      first_run_has_no_session_id,
+      second_run_resumes_captured_session,
+      session_volume_is_mounted,
+      session_id_getter_matches,
+    },
+  });
+
+  test("resetSession clears resume for the next run", {
+    given: {
+      registered_stock_binding,
+      stub_run_bound_writing_session_trajectory,
+    },
+    when: {
+      running_resetting_and_running_again,
+    },
+    then: {
+      third_run_has_no_session_id,
+    },
+  });
+
   test("throws for an unknown name", {
     given: {
       empty_package_root,
@@ -128,7 +164,10 @@ function stockBinding(): AgentBinding {
     image: STOCK_IMAGE,
     displayName: "Stock",
     trajectoryKind: "stock",
-    adaptEvents: () => [],
+    sessionDataPath: STOCK_SESSION_PATH,
+    adaptEvents: () => [
+      { kind: "system", sessionId: STOCK_SESSION_ID, model: null, raw: {} },
+    ],
     command: () => ["agent"],
     prepare: async () => ({}),
     parseResult: () => ({
@@ -199,6 +238,32 @@ function stub_run_bound(this: Context) {
   });
 }
 
+function stub_run_bound_writing_session_trajectory(this: Context) {
+  vi.spyOn(ensureImageModule, "ensureDockerImage").mockResolvedValue();
+  vi.spyOn(buildImagesModule, "buildImages").mockResolvedValue();
+  vi.spyOn(runBoundModule, "runBoundAgent").mockImplementation(async (_binding, options) => {
+    const outputHost = options.ioVolumes?.find(
+      (volume: DockerVolumeMount) => volume.container === CONTAINER_OUTPUT,
+    )?.host;
+    if (outputHost !== undefined) {
+      await writeFile(
+        join(outputHost, TRAJECTORY_FILE),
+        `${JSON.stringify({ type: "system", session_id: STOCK_SESSION_ID })}\n`,
+      );
+    }
+    return {
+      durationMs: 10,
+      costUsd: null,
+      usage: {
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+      },
+    };
+  });
+}
+
 function constructing_stock(this: Context) {
   this.agent = new Agent("stock");
 }
@@ -226,6 +291,22 @@ async function writing_io_and_running_twice(this: Context) {
   await this.agent.run({ workspace: "/tmp/ws", prompt: "second" });
   this.inputAfterRuns = await this.agent.input.readText("spec.txt");
   this.outputListed = await this.agent.output.list();
+}
+
+async function running_twice_for_resume(this: Context) {
+  this.agent = new Agent("stock");
+  await this.agent.run({ workspace: "/tmp/ws", prompt: "first" });
+  this.firstRunOptions = vi.mocked(runBoundModule.runBoundAgent).mock.calls[0]?.[1];
+  await this.agent.run({ workspace: "/tmp/ws", prompt: "second" });
+  this.secondRunOptions = vi.mocked(runBoundModule.runBoundAgent).mock.calls[1]?.[1];
+}
+
+async function running_resetting_and_running_again(this: Context) {
+  this.agent = new Agent("stock");
+  await this.agent.run({ workspace: "/tmp/ws", prompt: "first" });
+  await this.agent.resetSession();
+  await this.agent.run({ workspace: "/tmp/ws", prompt: "second" });
+  this.thirdRunOptions = vi.mocked(runBoundModule.runBoundAgent).mock.calls[1]?.[1];
 }
 
 function constructing_unknown_catching(this: Context) {
@@ -270,12 +351,35 @@ function run_bound_received_io_volumes(this: Context) {
   expect(runBoundModule.runBoundAgent).toHaveBeenCalledWith(
     expect.anything(),
     expect.objectContaining({
-      ioVolumes: [
+      ioVolumes: expect.arrayContaining([
         expect.objectContaining({ container: "/agent/input", mode: "ro" }),
         expect.objectContaining({ container: "/agent/output" }),
-      ],
+        expect.objectContaining({ container: STOCK_SESSION_PATH }),
+      ]),
     }),
   );
+}
+
+function first_run_has_no_session_id(this: Context) {
+  expect(this.firstRunOptions?.sessionId).toBeUndefined();
+}
+
+function second_run_resumes_captured_session(this: Context) {
+  expect(this.secondRunOptions?.sessionId).toBe(STOCK_SESSION_ID);
+}
+
+function session_volume_is_mounted(this: Context) {
+  expect(this.firstRunOptions?.ioVolumes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ container: STOCK_SESSION_PATH })]),
+  );
+}
+
+function session_id_getter_matches(this: Context) {
+  expect(this.agent?.sessionId()).toBe(STOCK_SESSION_ID);
+}
+
+function third_run_has_no_session_id(this: Context) {
+  expect(this.thirdRunOptions?.sessionId).toBeUndefined();
 }
 
 function input_still_present(this: Context) {

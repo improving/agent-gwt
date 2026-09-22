@@ -83,6 +83,18 @@ describe("claudeBinding.command", () => {
       includes_model_flag,
     },
   });
+
+  test("includes --resume when a session id is provided", {
+    given: {
+      oauth_token_credentials,
+    },
+    when: {
+      building_docker_args_with_session,
+    },
+    then: {
+      includes_resume_flag,
+    },
+  });
 });
 
 function oauth_token_credentials(this: Context) {
@@ -105,7 +117,14 @@ function building_docker_args_with_model(this: Context) {
   this.args = dockerArgs(this.credentials, { model: "sonnet" });
 }
 
-function dockerArgs(credentials: ClaudeCredentials, options: { model?: string } = {}): string[] {
+function building_docker_args_with_session(this: Context) {
+  this.args = dockerArgs(this.credentials, { sessionId: "sess-claude-1" });
+}
+
+function dockerArgs(
+  credentials: ClaudeCredentials,
+  options: { model?: string; sessionId?: string } = {},
+): string[] {
   const volumes: DockerVolumeMount[] = [
     { host: "/tmp/.agents-gwt/ws-abc", container: CONTAINER_WORKSPACE },
   ];
@@ -128,6 +147,7 @@ function dockerArgs(credentials: ClaudeCredentials, options: { model?: string } 
     command: claudeBinding.command({
       prompt: "Create a README",
       ...(options.model !== undefined ? { model: options.model } : {}),
+      ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}),
     }),
   });
 }
@@ -203,4 +223,11 @@ function includes_model_flag(this: Context) {
   expect(modelIndex).toBeGreaterThan(-1);
   expect(this.args[modelIndex + 1]).toBe("sonnet");
   expect(this.args.indexOf("--")).toBeGreaterThan(modelIndex);
+}
+
+function includes_resume_flag(this: Context) {
+  const resumeIndex = this.args.indexOf("--resume");
+  expect(resumeIndex).toBeGreaterThan(-1);
+  expect(this.args[resumeIndex + 1]).toBe("sess-claude-1");
+  expect(this.args.indexOf("--")).toBeGreaterThan(resumeIndex);
 }

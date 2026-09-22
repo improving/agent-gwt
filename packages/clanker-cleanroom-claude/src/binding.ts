@@ -7,7 +7,7 @@ import {
   type DockerVolumeMount,
 } from "clanker-cleanroom";
 
-import { CLAUDE_CONTAINER_CREDENTIALS_PATH, CLAUDE_IMAGE } from "./constants.js";
+import { CLAUDE_CONTAINER_CREDENTIALS_PATH, CLAUDE_CONTAINER_SESSION_PATH, CLAUDE_IMAGE } from "./constants.js";
 import { credentialsEnv, resolveClaudeCredentials } from "./credentials.js";
 import { adaptClaudeEvents } from "./trajectory.js";
 
@@ -16,7 +16,8 @@ export const claudeBinding: AgentBinding = {
   displayName: "Claude",
   trajectoryKind: "claude",
   adaptEvents: adaptClaudeEvents,
-  command: ({ prompt, model }) => {
+  sessionDataPath: CLAUDE_CONTAINER_SESSION_PATH,
+  command: ({ prompt, model, sessionId }) => {
     const claudeArgs = [
       "claude",
       "-p",
@@ -25,6 +26,9 @@ export const claudeBinding: AgentBinding = {
       "--verbose",
       "--dangerously-skip-permissions",
     ];
+    if (sessionId !== undefined && sessionId !== "") {
+      claudeArgs.push("--resume", sessionId);
+    }
     if (model !== undefined && model !== "") {
       claudeArgs.push("--model", model);
     }

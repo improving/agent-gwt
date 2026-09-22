@@ -18,6 +18,8 @@ export type RunBoundAgentOptions = AgentRunBindingsOptions & {
   gid?: number;
   /** Staged `/agent/input` (ro) and `/agent/output` mounts; inserted after workspace. */
   ioVolumes?: readonly DockerVolumeMount[];
+  /** Resume a prior CLI session when the binding supports it. */
+  sessionId?: string;
 };
 
 export async function runBoundAgent(
@@ -55,6 +57,7 @@ export async function runBoundAgent(
       binding.command({
         prompt: options.prompt,
         ...(options.model !== undefined ? { model: options.model } : {}),
+        ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}),
       }),
     ),
   });

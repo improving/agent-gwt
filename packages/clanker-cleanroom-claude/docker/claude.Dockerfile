@@ -18,7 +18,8 @@ RUN curl -fsSL https://claude.ai/install.sh | bash \
 
 # Empty home for arbitrary host UIDs. ~/.claude is pre-created so a read-only
 # .credentials.json bind mount does not leave the directory root-owned.
-RUN mkdir -p /home/agent/.claude \
+# Pre-create projects/-workspace for the narrow session mount (cwd=/workspace).
+RUN mkdir -p /home/agent/.claude/projects/-workspace \
   && chmod -R 0777 /home/agent
 
 ENV HOME=/home/agent
