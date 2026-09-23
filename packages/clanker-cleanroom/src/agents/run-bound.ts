@@ -3,6 +3,14 @@ import { join } from "node:path";
 
 import { CONTAINER_HOME, CONTAINER_OUTPUT, CONTAINER_WORKSPACE } from "./base/constants.js";
 import { buildDockerRunArgs, runDocker } from "./docker.js";
+import {
+  applyPathRemaps,
+  CLANKER_PATH_REMAPS_ENV,
+  composeRemaps,
+  readInheritedRemaps,
+  remapsAreEmpty,
+  serializeRemaps,
+} from "./path-remaps.js";
 import { agentRunError } from "./run-error.js";
 import { TRAJECTORY_FILE, wrapCommandWithTrajectoryRedirect } from "./trajectory/index.js";
 import type {
@@ -37,11 +45,24 @@ export async function runBoundAgent(
     ...(prepared.volumes ?? []),
   ];
 
+  // Local trajectory read must use the unremapped host path (visible to this process).
   const outputHost = hostPathForContainer(volumes, CONTAINER_OUTPUT);
   if (outputHost === undefined) {
     throw new Error(
       `runBoundAgent requires an ioVolume mounted at ${CONTAINER_OUTPUT} to capture trajectory`,
     );
+  }
+
+  const inherited = readInheritedRemaps();
+  const dockerVolumes = volumes.map((volume) => ({
+    ...volume,
+    host: applyPathRemaps(volume.host, inherited),
+  }));
+
+  const childRemaps = composeRemaps(inherited, options.remaps ?? {});
+  const containerEnv: Record<string, string> = { HOME: CONTAINER_HOME };
+  if (!remapsAreEmpty(childRemaps)) {
+    containerEnv[CLANKER_PATH_REMAPS_ENV] = serializeRemaps(childRemaps);
   }
 
   const env = prepared.env ?? {};
@@ -50,9 +71,9 @@ export async function runBoundAgent(
     uid,
     gid,
     workdir: CONTAINER_WORKSPACE,
-    env: { HOME: CONTAINER_HOME },
+    env: containerEnv,
     envPassthrough: Object.keys(env),
-    volumes,
+    volumes: dockerVolumes,
     command: wrapCommandWithTrajectoryRedirect(
       binding.command({
         prompt: options.prompt,

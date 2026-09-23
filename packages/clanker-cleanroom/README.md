@@ -185,6 +185,34 @@ const trajectory = await agent.trajectory();
 - Each run streams CLI NDJSON to `/agent/output/trajectory`. Inspect with `agent.trajectory()` or `parseTrajectory(ndjson, kind, adaptEvents)`.
 - Paths must be relative (no `..`); `write` accepts `string | Uint8Array`
 
+### Nested agents (Docker-outside-of-Docker)
+
+When an agent container itself calls `Agent.run` against the **host** Docker socket, `-v` paths must be host paths. Pass `remaps` on the **outer** run to nest a prefix map into the child; that run’s own mounts are **not** rewritten. Inner runs read `CLANKER_PATH_REMAPS` and rewrite every volume host path before `docker run`. Additional `remaps` on an inner run are composed through the inherited map so nesting always resolves to the root host — inner code does not forward remaps manually.
+
+```ts
+import "@clanker-cleanroom/cursor/register";
+import { Agent } from "clanker-cleanroom";
+
+// Host: inject remaps for descendants; this run's -v hosts stay as given
+await new Agent("cursor").run({
+  workspace: "/tmp/ws",
+  prompt: "…",
+  remaps: {
+    "/inside/path": "/host/path",
+  },
+});
+
+// Inside Agent:1 — no remaps in code; volumes under /inside/path are rewritten to /host/path
+// await new Agent("cursor").run({ workspace: "/inside/path/job", prompt: "…" });
+```
+
+| Level | `run({ remaps })` | This run’s `-v` hosts | Child receives |
+| ----- | ----------------- | --------------------- | -------------- |
+| Host | `R0` | Unchanged | `R0` via `CLANKER_PATH_REMAPS` |
+| Nested | optional `R1` | Rewritten with inherited | `compose(inherited, R1)` |
+
+Keys and values should be absolute paths. The longest matching key prefix wins.
+
 ## Isolation
 
 - **Credentials only** — agent packages mount credentials only (no host settings/MCP/skills)
@@ -205,6 +233,7 @@ const trajectory = await agent.trajectory();
 | `buildImages(opts?)`                         | Topo-build a Dockerfile folder (default: base image only)      |
 | `createAgent(binding)` / `Agent.fromBinding` | Wrap a custom binding                                          |
 | `runBoundAgent(binding, options)`            | Shared docker orchestration                                    |
+| `remaps` / `CLANKER_PATH_REMAPS`             | Nested DooD path remaps (inject down, apply on inner runs)     |
 | `AgentRunResult`                             | Normalized metrics; missing fields are `null`                  |
 | `resolveImage` / `readRegistry`              | Read `clanker-cleanroom.images.json`                           |
 | `ensureDockerImage`                          | Assert an image exists (`docker image inspect`)                |

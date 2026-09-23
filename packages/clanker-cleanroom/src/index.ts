@@ -11,11 +11,20 @@ export type {
   DockerRunner,
   DockerVolumeMount,
   EnsureDockerImageOptions,
+  Remaps,
   RunAgentOptions,
   TokenUsage,
 } from "./agents/types.js";
 
 export { emptyTokenUsage, readTokenCount } from "./agents/types.js";
+
+export {
+  applyPathRemaps,
+  CLANKER_PATH_REMAPS_ENV,
+  composeRemaps,
+  readInheritedRemaps,
+  serializeRemaps,
+} from "./agents/path-remaps.js";
 
 export { buildDockerRunArgs, invokeDocker, runDocker } from "./agents/docker.js";
 

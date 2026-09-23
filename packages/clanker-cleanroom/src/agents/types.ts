@@ -1,4 +1,7 @@
+import type { Remaps } from "./path-remaps.js";
 import type { TrajectoryEvent, TrajectoryKind } from "./trajectory/types.js";
+
+export type { Remaps } from "./path-remaps.js";
 
 export type TokenUsage = {
   inputTokens: number | null;
@@ -20,6 +23,12 @@ export type RunAgentOptions = {
   model?: string;
   /** Override the agent's default image (e.g. for one-off local tags). */
   image?: string;
+  /**
+   * Path remaps nested into the agent container for Docker-outside-of-Docker.
+   * Not applied to this run's mounts — descendants read them from the environment
+   * and rewrite their `-v` host paths. See `CLANKER_PATH_REMAPS`.
+   */
+  remaps?: Remaps;
 };
 
 export type AgentRunBindingsOptions = RunAgentOptions & {

@@ -2,10 +2,11 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect } from "vitest";
+import { afterEach, describe, expect } from "vitest";
 import test from "vitest-gwt";
 
 import { CONTAINER_OUTPUT } from "./base/constants.js";
+import { CLANKER_PATH_REMAPS_ENV, serializeRemaps } from "./path-remaps.js";
 import { runBoundAgent } from "./run-bound.js";
 import { CONTAINER_TRAJECTORY_PATH, TRAJECTORY_FILE } from "./trajectory/index.js";
 import type { AgentBinding, DockerRunner } from "./types.js";
@@ -20,6 +21,10 @@ type Context = {
   result?: Awaited<ReturnType<typeof runBoundAgent>>;
   error?: Error;
 };
+
+afterEach(() => {
+  delete process.env[CLANKER_PATH_REMAPS_ENV];
+});
 
 describe("runBoundAgent", () => {
   test("mounts workspace, redirects trajectory, and returns parseResult from the file", {
@@ -79,6 +84,38 @@ describe("runBoundAgent", () => {
       error_requires_output_volume,
     },
   });
+
+  test("injects remaps into the child without remapping this run's volumes", {
+    given: {
+      stub_binding,
+      output_host_dir,
+      docker_succeeds_writing_trajectory,
+    },
+    when: {
+      running_bound_agent_with_remaps,
+    },
+    then: {
+      docker_volumes_unremapped,
+      child_receives_remaps_env,
+    },
+  });
+
+  test("applies inherited remaps to volume hosts and nests composed remaps", {
+    given: {
+      stub_binding,
+      output_host_dir,
+      inherited_remaps_env,
+      docker_succeeds_writing_trajectory,
+    },
+    when: {
+      running_bound_agent_with_nested_remaps,
+    },
+    then: {
+      docker_volumes_remapped_via_inherited,
+      child_receives_composed_remaps,
+      trajectory_still_read_from_local_output,
+    },
+  });
 });
 
 function stub_binding(this: Context) {
@@ -110,6 +147,12 @@ function stub_binding(this: Context) {
 
 async function output_host_dir(this: Context) {
   this.outputHost = await mkdtemp(join(tmpdir(), "clanker-out-"));
+}
+
+function inherited_remaps_env() {
+  process.env[CLANKER_PATH_REMAPS_ENV] = serializeRemaps({
+    "/tmp": "/host/tmp",
+  });
 }
 
 function docker_succeeds_writing_trajectory(this: Context) {
@@ -150,6 +193,44 @@ async function running_bound_agent(this: Context) {
       image: "test/image",
       uid: 1,
       gid: 1,
+      ioVolumes: [
+        { host: "/tmp/in", container: "/agent/input", mode: "ro" },
+        { host: this.outputHost!, container: CONTAINER_OUTPUT },
+      ],
+    },
+    this.dockerRunner,
+  );
+}
+
+async function running_bound_agent_with_remaps(this: Context) {
+  this.result = await runBoundAgent(
+    this.binding,
+    {
+      workspace: "/tmp/ws",
+      prompt: "hi",
+      image: "test/image",
+      uid: 1,
+      gid: 1,
+      remaps: { "/inside/path": "/host/path" },
+      ioVolumes: [
+        { host: "/tmp/in", container: "/agent/input", mode: "ro" },
+        { host: this.outputHost!, container: CONTAINER_OUTPUT },
+      ],
+    },
+    this.dockerRunner,
+  );
+}
+
+async function running_bound_agent_with_nested_remaps(this: Context) {
+  this.result = await runBoundAgent(
+    this.binding,
+    {
+      workspace: "/tmp/ws",
+      prompt: "hi",
+      image: "test/image",
+      uid: 1,
+      gid: 1,
+      remaps: { "/nested": "/tmp/nested" },
       ioVolumes: [
         { host: "/tmp/in", container: "/agent/input", mode: "ro" },
         { host: this.outputHost!, container: CONTAINER_OUTPUT },
@@ -230,4 +311,54 @@ function error_names_agent(this: Context) {
 
 function error_requires_output_volume(this: Context) {
   expect(this.error?.message).toContain(CONTAINER_OUTPUT);
+}
+
+function docker_volumes_unremapped(this: Context) {
+  expect(this.dockerArgs).toContain("/tmp/ws:/workspace");
+  expect(this.dockerArgs).toContain("/tmp/in:/agent/input:ro");
+  expect(this.dockerArgs).toContain(`${this.outputHost}:${CONTAINER_OUTPUT}`);
+  expect(this.dockerArgs).toContain("/tmp/secret:/secret:ro");
+}
+
+function child_receives_remaps_env(this: Context) {
+  const remapsFlag = this.dockerArgs?.find(
+    (arg, index) =>
+      this.dockerArgs?.[index - 1] === "-e" && arg.startsWith(`${CLANKER_PATH_REMAPS_ENV}=`),
+  );
+  expect(remapsFlag).toBe(
+    `${CLANKER_PATH_REMAPS_ENV}=${serializeRemaps({ "/inside/path": "/host/path" })}`,
+  );
+}
+
+function docker_volumes_remapped_via_inherited(this: Context) {
+  expect(this.dockerArgs).toContain("/host/tmp/ws:/workspace");
+  expect(this.dockerArgs).toContain("/host/tmp/in:/agent/input:ro");
+  expect(this.dockerArgs).toContain("/host/tmp/secret:/secret:ro");
+
+  const remappedOutput = applyTmpRemap(this.outputHost!);
+  expect(this.dockerArgs).toContain(`${remappedOutput}:${CONTAINER_OUTPUT}`);
+}
+
+function child_receives_composed_remaps(this: Context) {
+  const remapsFlag = this.dockerArgs?.find(
+    (arg, index) =>
+      this.dockerArgs?.[index - 1] === "-e" && arg.startsWith(`${CLANKER_PATH_REMAPS_ENV}=`),
+  );
+  expect(remapsFlag).toBe(
+    `${CLANKER_PATH_REMAPS_ENV}=${serializeRemaps({
+      "/tmp": "/host/tmp",
+      "/nested": "/host/tmp/nested",
+    })}`,
+  );
+}
+
+function trajectory_still_read_from_local_output(this: Context) {
+  expect(this.parsedTrajectory).toContain('"type":"result"');
+}
+
+function applyTmpRemap(hostPath: string): string {
+  if (hostPath === "/tmp" || hostPath.startsWith("/tmp/")) {
+    return `/host/tmp${hostPath.slice("/tmp".length)}`;
+  }
+  return hostPath;
 }
