@@ -1,6 +1,6 @@
 {
   "name": "@clanker-cleanroom/claude",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Claude Code agent binding for clanker-cleanroom",
   "keywords": [
     "agent",
