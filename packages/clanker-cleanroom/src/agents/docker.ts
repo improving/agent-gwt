@@ -20,10 +20,18 @@ export const runDocker: DockerRunner = (args, options = {}) =>
       return;
     }
 
+    const input = options.input;
     const child = spawn("docker", args, {
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [input !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
       env: { ...process.env, ...options.env },
     });
+
+    if (input !== undefined && child.stdin !== null) {
+      child.stdin.on("error", () => {
+        // Ignore EPIPE if the container exits before consuming all input.
+      });
+      child.stdin.end(input);
+    }
 
     let stdout = "";
     let stderr = "";
@@ -107,7 +115,7 @@ function createAbortError(): Error {
 }
 
 export function buildDockerRunArgs(options: BuildDockerRunArgsOptions): string[] {
-  const args = ["run", "--rm", "--user", `${options.uid}:${options.gid}`];
+  const args = ["run", "--rm", "-i", "--user", `${options.uid}:${options.gid}`];
 
   if (options.name !== undefined && options.name !== "") {
     args.push("--name", options.name);

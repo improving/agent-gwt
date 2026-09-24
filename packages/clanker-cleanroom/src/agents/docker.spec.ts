@@ -47,6 +47,15 @@ describe("buildDockerRunArgs", () => {
       has_name_and_labels,
     },
   });
+
+  test("enables interactive stdin so the prompt can be piped into the container", {
+    when: {
+      building_args,
+    },
+    then: {
+      enables_interactive_stdin,
+    },
+  });
 });
 
 function building_args(this: Context) {
@@ -144,4 +153,9 @@ function has_name_and_labels(this: Context) {
   expect(this.args).toContain("clanker.name=clanker-test");
   expect(this.args).toContain("clanker.root=clanker-root");
   expect(this.args).toContain("clanker.parent=clanker-parent");
+}
+
+function enables_interactive_stdin(this: Context) {
+  expect(this.args[0]).toBe("run");
+  expect(this.args).toContain("-i");
 }

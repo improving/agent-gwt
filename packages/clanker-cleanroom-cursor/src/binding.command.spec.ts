@@ -46,6 +46,15 @@ describe("cursorBinding.command", () => {
       includes_resume_flag,
     },
   });
+
+  test("omits the raw prompt from argv so the CLI reads it from stdin", {
+    when: {
+      building_cursor_command,
+    },
+    then: {
+      command_omits_raw_prompt,
+    },
+  });
 });
 
 function building_docker_args(this: Context) {
@@ -58,6 +67,10 @@ function building_docker_args_with_model(this: Context) {
 
 function building_docker_args_with_session(this: Context) {
   this.args = dockerArgs({ sessionId: "sess-cursor-1" });
+}
+
+function building_cursor_command(this: Context) {
+  this.args = cursorBinding.command({ prompt: "Create a README" });
 }
 
 function dockerArgs(options: { model?: string; sessionId?: string } = {}): string[] {
@@ -115,19 +128,22 @@ function invokes_agent_with_json_output(this: Context) {
   expect(this.args).toContain("--output-format");
   expect(this.args).toContain("stream-json");
   expect(this.args).toContain("--force");
-  expect(this.args.at(-1)).toBe("Create a README");
+  expect(this.args.includes("Create a README")).toBe(false);
+}
+
+function command_omits_raw_prompt(this: Context) {
+  expect(this.args.includes("Create a README")).toBe(false);
+  expect(this.args.at(-1)).not.toBe("--");
 }
 
 function includes_model_flag(this: Context) {
   const modelIndex = this.args.indexOf("--model");
   expect(modelIndex).toBeGreaterThan(-1);
   expect(this.args[modelIndex + 1]).toBe("composer-2");
-  expect(this.args.indexOf("--")).toBeGreaterThan(modelIndex);
 }
 
 function includes_resume_flag(this: Context) {
   const resumeIndex = this.args.indexOf("--resume");
   expect(resumeIndex).toBeGreaterThan(-1);
   expect(this.args[resumeIndex + 1]).toBe("sess-cursor-1");
-  expect(this.args.indexOf("--")).toBeGreaterThan(resumeIndex);
 }
