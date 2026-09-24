@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 
+import { isAbortError } from "./abort-error.js";
+import { forceRemoveContainerTree } from "./cancel.js";
 import type { BuildDockerRunArgsOptions, DockerRunResult, DockerRunner } from "./types.js";
 
 export type {
@@ -12,6 +14,12 @@ export type {
 
 export const runDocker: DockerRunner = (args, options = {}) =>
   new Promise((resolve, reject) => {
+    const signal = options.signal;
+    if (signal?.aborted === true) {
+      reject(createAbortError());
+      return;
+    }
+
     const child = spawn("docker", args, {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, ...options.env },
@@ -19,7 +27,40 @@ export const runDocker: DockerRunner = (args, options = {}) =>
 
     let stdout = "";
     let stderr = "";
+    let settled = false;
     const inheritOutput = options.inheritOutput === true;
+    const containerName = options.containerName;
+
+    const settle = (fn: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanupAbortListener();
+      fn();
+    };
+
+    const onAbort = () => {
+      void (async () => {
+        if (containerName !== undefined && containerName !== "") {
+          try {
+            await forceRemoveContainerTree(containerName);
+          } catch {
+            // Best-effort cleanup; still abort the promise below.
+          }
+        }
+        child.kill("SIGKILL");
+        settle(() => {
+          reject(createAbortError());
+        });
+      })();
+    };
+
+    const cleanupAbortListener = () => {
+      signal?.removeEventListener("abort", onAbort);
+    };
+
+    signal?.addEventListener("abort", onAbort, { once: true });
 
     child.stdout.on("data", (chunk: Buffer | string) => {
       const text = chunk.toString();
@@ -37,18 +78,46 @@ export const runDocker: DockerRunner = (args, options = {}) =>
     });
 
     child.on("error", (error: Error) => {
-      reject(
-        new Error(`Failed to start docker: ${error.message}. Is Docker installed and running?`),
-      );
+      settle(() => {
+        if (signal?.aborted === true || isAbortError(error)) {
+          reject(createAbortError());
+          return;
+        }
+        reject(
+          new Error(`Failed to start docker: ${error.message}. Is Docker installed and running?`),
+        );
+      });
     });
 
     child.on("close", (exitCode: number | null) => {
-      resolve({ exitCode, stdout, stderr });
+      settle(() => {
+        if (signal?.aborted === true) {
+          reject(createAbortError());
+          return;
+        }
+        resolve({ exitCode, stdout, stderr });
+      });
     });
   });
 
+function createAbortError(): Error {
+  const error = new Error("Docker run aborted");
+  error.name = "AbortError";
+  return error;
+}
+
 export function buildDockerRunArgs(options: BuildDockerRunArgsOptions): string[] {
   const args = ["run", "--rm", "--user", `${options.uid}:${options.gid}`];
+
+  if (options.name !== undefined && options.name !== "") {
+    args.push("--name", options.name);
+  }
+
+  if (options.labels !== undefined) {
+    for (const [key, value] of Object.entries(options.labels)) {
+      args.push("--label", `${key}=${value}`);
+    }
+  }
 
   if (options.env !== undefined) {
     for (const [key, value] of Object.entries(options.env)) {

@@ -103,6 +103,8 @@ export class Agent {
         prompt: options.prompt,
         image: options.image ?? this.image,
         ...(options.model !== undefined ? { model: options.model } : {}),
+        ...(options.remaps !== undefined ? { remaps: options.remaps } : {}),
+        ...(options.signal !== undefined ? { signal: options.signal } : {}),
         ...(this.currentSessionId !== null ? { sessionId: this.currentSessionId } : {}),
         ioVolumes,
       });
