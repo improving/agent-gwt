@@ -38,6 +38,15 @@ describe("buildDockerRunArgs", () => {
       passthrough_env_is_name_only,
     },
   });
+
+  test("includes container name and labels when provided", {
+    when: {
+      building_args_with_name_and_labels,
+    },
+    then: {
+      has_name_and_labels,
+    },
+  });
 });
 
 function building_args(this: Context) {
@@ -111,4 +120,28 @@ function building_args_with_env_passthrough(this: Context) {
 function passthrough_env_is_name_only(this: Context) {
   const envValues = this.args.filter((arg, i) => this.args[i - 1] === "-e");
   expect(envValues).toEqual(["HOME=/home/agent", "SECRET_TOKEN"]);
+}
+
+function building_args_with_name_and_labels(this: Context) {
+  this.args = buildDockerRunArgs({
+    image: "example:local",
+    uid: 1,
+    gid: 1,
+    workdir: "/workspace",
+    name: "clanker-test",
+    labels: {
+      "clanker.name": "clanker-test",
+      "clanker.root": "clanker-root",
+      "clanker.parent": "clanker-parent",
+    },
+    command: ["true"],
+  });
+}
+
+function has_name_and_labels(this: Context) {
+  expect(this.args).toContain("--name");
+  expect(this.args[this.args.indexOf("--name") + 1]).toBe("clanker-test");
+  expect(this.args).toContain("clanker.name=clanker-test");
+  expect(this.args).toContain("clanker.root=clanker-root");
+  expect(this.args).toContain("clanker.parent=clanker-parent");
 }

@@ -118,6 +118,36 @@ await new Agent("cursor:node").run({
 
 Convenience instances live on the agent packages (`cursorAgent` / `claudeAgent` via `Agent.fromBinding`).
 
+### Cancel / AbortSignal
+
+Pass an `AbortSignal` to stop an in-flight run promptly (force-remove the named container and any nested DooD descendants). The promise rejects with `AgentAbortError` (`error.name === "AbortError"`), which carries best-effort `result` metrics from whatever trajectory was written before abort.
+
+```ts
+import "@clanker-cleanroom/cursor/register";
+import { Agent, AgentAbortError } from "clanker-cleanroom";
+
+const ac = new AbortController();
+const run = new Agent("cursor").run({
+  workspace: "/tmp/ws",
+  prompt: "…",
+  signal: ac.signal,
+});
+
+// later (Ctrl+C, timeout, UI Stop, …)
+ac.abort();
+
+try {
+  await run;
+} catch (error) {
+  if (error instanceof AgentAbortError) {
+    console.log(error.result); // tokens/cost when the CLI already wrote a result event
+  }
+  throw error;
+}
+```
+
+After abort, `agent.trajectory()` / `agent.sessionId()` still reflect any NDJSON that landed under `/agent/output` (same as a failed run).
+
 ### Multi-turn (session resume)
 
 The same `Agent` instance resumes the prior CLI session on every `run()` after the first. The session id is stored on the instance; session files are staged on the host and remounted into the container (Cursor: `~/.cursor/chats`, Claude: `~/.claude/projects/-workspace` only — not the whole home dir).
@@ -213,6 +243,8 @@ await new Agent("cursor").run({
 
 Keys and values should be absolute paths. The longest matching key prefix wins.
 
+Nested containers are siblings on the **host** Docker daemon, not cgroup children of the outer container. Every agent `docker run` gets a unique `--name` plus labels (`clanker.name`, `clanker.parent`, `clanker.root`) and injects `CLANKER_DOCKER_NAME` / `CLANKER_DOCKER_ROOT` into the child (same pattern as remaps). Host `signal.abort()` runs `forceRemoveContainerTree` so DooD descendants are reaped even when the outer Node process never gets to clean up.
+
 ## Isolation
 
 - **Credentials only** — agent packages mount credentials only (no host settings/MCP/skills)
@@ -225,6 +257,7 @@ Keys and values should be absolute paths. The longest matching key prefix wins.
 | -------------------------------------------- | -------------------------------------------------------------- |
 | `Agent`                                      | `new Agent(name)` — registered stock name or registry tag      |
 | `Agent.sessionId()` / `Agent.resetSession()` | Inspect or clear the instance CLI session                      |
+| `AgentAbortError`                            | Abort reject; `name === "AbortError"`, best-effort `.result`   |
 | `registerBinding` / `resetBindings`          | Pluggable stock binding registry                               |
 | `AgentFs` / `agent.input` / `agent.output`   | Stage files for `/agent/input` (ro) and `/agent/output`        |
 | `Agent.trajectory()`                         | Normalize the last run's `trajectory` NDJSON                   |
@@ -234,6 +267,7 @@ Keys and values should be absolute paths. The longest matching key prefix wins.
 | `createAgent(binding)` / `Agent.fromBinding` | Wrap a custom binding                                          |
 | `runBoundAgent(binding, options)`            | Shared docker orchestration                                    |
 | `remaps` / `CLANKER_PATH_REMAPS`             | Nested DooD path remaps (inject down, apply on inner runs)     |
+| `CLANKER_DOCKER_NAME` / `forceRemoveContainerTree` | DooD cancel tree identity + subtree cleanup              |
 | `AgentRunResult`                             | Normalized metrics; missing fields are `null`                  |
 | `resolveImage` / `readRegistry`              | Read `clanker-cleanroom.images.json`                           |
 | `ensureDockerImage`                          | Assert an image exists (`docker image inspect`)                |

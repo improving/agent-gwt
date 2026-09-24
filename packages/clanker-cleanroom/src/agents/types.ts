@@ -29,6 +29,8 @@ export type RunAgentOptions = {
    * and rewrite their `-v` host paths. See `CLANKER_PATH_REMAPS`.
    */
   remaps?: Remaps;
+  /** Cancel the in-flight `docker run` (and DooD descendants) when aborted. */
+  signal?: AbortSignal;
 };
 
 export type AgentRunBindingsOptions = RunAgentOptions & {
@@ -56,6 +58,10 @@ export type DockerRunOptions = {
    * appearing on the host command line.
    */
   env?: Record<string, string>;
+  /** When aborted, force-remove {@link containerName} (and DooD descendants) and reject. */
+  signal?: AbortSignal;
+  /** Name passed to `docker run --name`; required for reliable abort cleanup. */
+  containerName?: string;
 };
 
 export type DockerRunner = (args: string[], options?: DockerRunOptions) => Promise<DockerRunResult>;
@@ -77,6 +83,10 @@ export type BuildDockerRunArgsOptions = {
   /** `-e NAME` — value is read from the docker CLI's own environment, never on argv. */
   envPassthrough?: string[];
   volumes?: DockerVolumeMount[];
+  /** Unique `docker run --name` so abort can `docker rm -f` this container. */
+  name?: string;
+  /** `--label key=value` pairs (e.g. DooD cancel tree labels). */
+  labels?: Record<string, string>;
 };
 
 export type EnsureDockerImageOptions = {

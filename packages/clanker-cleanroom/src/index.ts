@@ -26,6 +26,18 @@ export {
   serializeRemaps,
 } from "./agents/path-remaps.js";
 
+export {
+  CLANKER_DOCKER_NAME_ENV,
+  CLANKER_DOCKER_ROOT_ENV,
+  CLANKER_LABEL_NAME,
+  CLANKER_LABEL_PARENT,
+  CLANKER_LABEL_ROOT,
+  forceRemoveContainerTree,
+  readCancelIdentity,
+} from "./agents/cancel.js";
+
+export { AgentAbortError, isAbortError, tryParseAbortedResult } from "./agents/abort-error.js";
+
 export { buildDockerRunArgs, invokeDocker, runDocker } from "./agents/docker.js";
 
 export { ensureDockerImage } from "./agents/ensure-image.js";
