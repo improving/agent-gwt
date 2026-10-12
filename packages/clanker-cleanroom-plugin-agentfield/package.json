@@ -1,0 +1,143 @@
+{
+  "name": "@clanker-cleanroom/plugin-agentfield",
+  "version": "0.2.8",
+  "description": "AgentField plugin: agent.clanker() via clanker-cleanroom with harness-style usage auditing",
+  "keywords": [
+    "agent",
+    "agentfield",
+    "cleanroom",
+    "clanker",
+    "docker",
+    "harness"
+  ],
+  "homepage": "https://github.com/improving/agent-gwt#readme",
+  "bugs": {
+    "url": "https://github.com/improving/agent-gwt/issues"
+  },
+  "license": "MIT",
+  "author": "Eric Siebeneich <eric.siebeneich@improving.com> (https://github.com/improving)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/improving/agent-gwt.git",
+    "directory": "packages/clanker-cleanroom-plugin-agentfield"
+  },
+  "files": [
+    "lib",
+    "src",
+    "!**/*.spec.ts"
+  ],
+  "type": "module",
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.mjs",
+  "types": "./lib/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./lib/index.d.mts",
+        "default": "./lib/index.mjs"
+      },
+      "require": {
+        "types": "./lib/index.d.cts",
+        "default": "./lib/index.cjs"
+      }
+    },
+    "./register": {
+      "import": {
+        "types": "./lib/register.d.mts",
+        "default": "./lib/register.mjs"
+      },
+      "require": {
+        "types": "./lib/register.d.cts",
+        "default": "./lib/register.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "wireit",
+    "test": "wireit",
+    "lint": "wireit",
+    "test:coverage": "wireit",
+    "prepublishOnly": "wireit"
+  },
+  "wireit": {
+    "build": {
+      "command": "vp pack",
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json",
+        "vite.config.ts",
+        "!src/**/*.spec.ts"
+      ],
+      "output": [
+        "lib/**"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
+      ]
+    },
+    "lint": {
+      "command": "vp lint src && tsc --noEmit -p tsconfig.json",
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json",
+        "vite.config.ts"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
+      ]
+    },
+    "test": {
+      "command": "vitest run",
+      "files": [
+        "src/**/*.ts",
+        "vite.config.ts"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
+      ]
+    },
+    "test:coverage": {
+      "command": "vitest run --coverage",
+      "files": [
+        "src/**/*.ts",
+        "vite.config.ts"
+      ],
+      "output": [
+        "coverage/**"
+      ],
+      "dependencies": [
+        "../clanker-cleanroom:build"
+      ]
+    },
+    "prepublishOnly": {
+      "dependencies": [
+        "lint",
+        "test",
+        "build"
+      ]
+    }
+  },
+  "dependencies": {
+    "clanker-cleanroom": "workspace:*"
+  },
+  "peerDependencies": {
+    "@agentfield/sdk": "^0.1.141"
+  },
+  "devDependencies": {
+    "@agentfield/sdk": "^0.1.141",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:",
+    "vitest-gwt": "catalog:",
+    "wireit": "catalog:",
+    "zod": "^3.22.4"
+  },
+  "packageManager": "pnpm@11.22.0"
+}
