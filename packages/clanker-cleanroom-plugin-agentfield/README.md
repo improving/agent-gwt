@@ -33,7 +33,9 @@ agent.reasoner("fix", async () => {
 });
 ```
 
-Or call `installClanker()` / the free `clanker(prompt, options)` helper from the package root instead of the `/register` side-effect.
+Or call `installClanker()` / the free `clanker(prompt, options, deps?)` helper from the package root instead of the `/register` side-effect.
+
+Optional third argument `deps` is forwarded the same way on both `agent.clanker` and free `clanker` — pass `{ createAgent }` to reuse a staged cleanroom `Agent` (for `/agent/input` + `/agent/output`).
 
 ## Options
 
