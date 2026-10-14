@@ -62,6 +62,8 @@ export type DockerRunOptions = {
   signal?: AbortSignal;
   /** Name passed to `docker run --name`; required for reliable abort cleanup. */
   containerName?: string;
+  /** Bytes written to `docker run -i` stdin (e.g. the agent prompt). */
+  input?: string;
 };
 
 export type DockerRunner = (args: string[], options?: DockerRunOptions) => Promise<DockerRunResult>;

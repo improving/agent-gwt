@@ -122,6 +122,7 @@ export async function runBoundAgent(
   try {
     result = await dockerRunner(args, {
       env,
+      input: options.prompt,
       ...(signal !== undefined ? { signal } : {}),
       containerName,
     });

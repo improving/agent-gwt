@@ -17,7 +17,7 @@ export const claudeBinding: AgentBinding = {
   trajectoryKind: "claude",
   adaptEvents: adaptClaudeEvents,
   sessionDataPath: CLAUDE_CONTAINER_SESSION_PATH,
-  command: ({ prompt, model, sessionId }) => {
+  command: ({ model, sessionId }) => {
     const claudeArgs = [
       "claude",
       "-p",
@@ -32,7 +32,6 @@ export const claudeBinding: AgentBinding = {
     if (model !== undefined && model !== "") {
       claudeArgs.push("--model", model);
     }
-    claudeArgs.push("--", prompt);
     return claudeArgs;
   },
   prepare: async () => {

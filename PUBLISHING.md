@@ -2,24 +2,26 @@
 
 CI publishes via [npm trusted publishers](https://docs.npmjs.com/trusted-publishers) (OIDC) from [`.github/workflows/publish.yml`](.github/workflows/publish.yml). There is no `NPM_TOKEN` secret.
 
-This repo is a pnpm workspace with four publishable packages:
+This repo is a pnpm workspace with five publishable packages:
 
-| Package                     | Path                                                                       |
-| --------------------------- | -------------------------------------------------------------------------- |
-| `clanker-cleanroom`         | [`packages/clanker-cleanroom`](packages/clanker-cleanroom)                 |
-| `@clanker-cleanroom/cursor` | [`packages/clanker-cleanroom-cursor`](packages/clanker-cleanroom-cursor)   |
-| `@clanker-cleanroom/claude` | [`packages/clanker-cleanroom-claude`](packages/clanker-cleanroom-claude)   |
-| `agent-gwt`                 | [`packages/agent-gwt`](packages/agent-gwt)                                 |
+| Package                                | Path                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `clanker-cleanroom`                    | [`packages/clanker-cleanroom`](packages/clanker-cleanroom)                                 |
+| `@clanker-cleanroom/cursor`            | [`packages/clanker-cleanroom-cursor`](packages/clanker-cleanroom-cursor)                   |
+| `@clanker-cleanroom/claude`            | [`packages/clanker-cleanroom-claude`](packages/clanker-cleanroom-claude)                   |
+| `@clanker-cleanroom/plugin-agentfield` | [`packages/clanker-cleanroom-plugin-agentfield`](packages/clanker-cleanroom-plugin-agentfield) |
+| `agent-gwt`                            | [`packages/agent-gwt`](packages/agent-gwt)                                                 |
 
-**Versions stay in sync** across five `package.json` files:
+**Versions stay in sync** across six `package.json` files:
 
 1. Root [`package.json`](package.json) (canonical for CI bumps)
 2. [`packages/agent-gwt/package.json`](packages/agent-gwt/package.json)
 3. [`packages/clanker-cleanroom/package.json`](packages/clanker-cleanroom/package.json)
 4. [`packages/clanker-cleanroom-cursor/package.json`](packages/clanker-cleanroom-cursor/package.json)
 5. [`packages/clanker-cleanroom-claude/package.json`](packages/clanker-cleanroom-claude/package.json)
+6. [`packages/clanker-cleanroom-plugin-agentfield/package.json`](packages/clanker-cleanroom-plugin-agentfield/package.json)
 
-CI publishes in dependency order: `clanker-cleanroom` → agent packages → `agent-gwt`.
+CI publishes in dependency order: `clanker-cleanroom` → agent packages → `plugin-agentfield` → `agent-gwt`.
 
 ## One-time setup
 
@@ -33,12 +35,13 @@ pnpm run lint && pnpm run test && pnpm run build
 pnpm --filter clanker-cleanroom publish --access public --ignore-scripts
 pnpm --filter @clanker-cleanroom/cursor publish --access public --ignore-scripts
 pnpm --filter @clanker-cleanroom/claude publish --access public --ignore-scripts
+pnpm --filter @clanker-cleanroom/plugin-agentfield publish --access public --ignore-scripts
 pnpm --filter agent-gwt publish --access public --ignore-scripts
 ```
 
 ### 2. Configure the trusted publisher (each package)
 
-On [npmjs.com](https://www.npmjs.com) → package → Settings → Trusted Publisher, for **each** of the four packages:
+On [npmjs.com](https://www.npmjs.com) → package → Settings → Trusted Publisher, for **each** of the five packages:
 
 | Field                | Value                                               |
 | -------------------- | --------------------------------------------------- |

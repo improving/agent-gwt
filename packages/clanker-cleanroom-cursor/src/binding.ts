@@ -19,7 +19,7 @@ export const cursorBinding: AgentBinding = {
   trajectoryKind: "cursor",
   adaptEvents: adaptCursorEvents,
   sessionDataPath: CONTAINER_SESSION_PATH,
-  command: ({ prompt, model, sessionId }) => {
+  command: ({ model, sessionId }) => {
     const agentArgs = ["agent", "-p", "--force", "--output-format", "stream-json"];
     if (sessionId !== undefined && sessionId !== "") {
       agentArgs.push("--resume", sessionId);
@@ -27,7 +27,6 @@ export const cursorBinding: AgentBinding = {
     if (model !== undefined && model !== "") {
       agentArgs.push("--model", model);
     }
-    agentArgs.push("--", prompt);
     return agentArgs;
   },
   prepare: async () => {
